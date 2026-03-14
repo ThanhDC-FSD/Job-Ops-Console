@@ -46,6 +46,12 @@ These excerpts are intentionally partial and are provided only to show implement
 - [CV generation and artifact workflow excerpt](showcase_assets/code/cv_generation_excerpt.md)
 - [Frontend analytics and interaction excerpt](showcase_assets/code/frontend_analytics_excerpt.md)
 
+## Basic Architecture
+
+This architecture note is intentionally high-level and is included for showcase purposes only.
+
+- [Basic project architecture](showcase_assets/architecture/basic_project_architecture.md)
+
 ## Notes
 
 - This branch is intended for review and presentation only.
