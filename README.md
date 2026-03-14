@@ -42,15 +42,16 @@ Automation is central to the project, from collecting job data to tracking progr
 
 These excerpts are intentionally partial and are provided only to show implementation style, design choices, and technical depth. They are not enough to run the full application.
 
+- [Backend design patterns excerpt](showcase_assets/code/backend_patterns_excerpt.md)
 - [Backend API and filtering excerpt](showcase_assets/code/backend_api_excerpt.md)
 - [CV generation and artifact workflow excerpt](showcase_assets/code/cv_generation_excerpt.md)
 - [Frontend analytics and interaction excerpt](showcase_assets/code/frontend_analytics_excerpt.md)
 
-## Basic Architecture
+## Architecture Overview
 
-This architecture note is intentionally high-level and is included for showcase purposes only.
+This note is intentionally written at a showcase level. It highlights the main system layers and runtime flows, including job crawling, evaluation, automation, and LLM-assisted artifact generation.
 
-- [Basic project architecture](showcase_assets/architecture/basic_project_architecture.md)
+- [Project architecture overview](showcase_assets/architecture/basic_project_architecture.md)
 
 ## Notes
 

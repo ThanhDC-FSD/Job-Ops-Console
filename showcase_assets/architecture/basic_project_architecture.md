@@ -1,141 +1,220 @@
 # Project Architecture Overview
 
-This document is intentionally written at a **showcase level**. It is meant to present the structure and engineering direction of the project without exposing operationally sensitive details.
+This document is intentionally written at a **showcase level**. It is meant to communicate the structure, engineering direction, and main runtime flows of the project without exposing sensitive implementation details.
 
 ## System Goal
 
-Job Ops Console is a workflow-oriented application designed to centralize:
+Job Ops Console is a workflow-oriented application for managing a job-search process end to end:
 
-- job collection
-- filtering and prioritization
-- fit evaluation
-- CV and portfolio artifact generation
-- application tracking
-- operator-facing analytics and automation
+- collecting job data from external sources
+- normalizing and storing observations
+- reviewing jobs through an operator console
+- evaluating CV fit against JD content
+- generating tailored application artifacts
+- tracking application outcomes over time
 
-The project is intentionally practical: it focuses on repeatable workflow execution rather than a purely demo-oriented UI.
+The project is not just a CRUD dashboard. Its core value comes from combining **automation**, **data processing**, and **LLM-assisted artifact generation** into one operational workflow.
 
-## Architecture Diagram
+## High-Level Architecture
+
+```mermaid
+flowchart LR
+    subgraph External Sources
+        A1[LinkedIn Job Pages]
+        A2[Public Job Search Endpoints]
+        A3[Operator Inputs / Manual Actions]
+    end
+
+    subgraph Crawl and ETL
+        B1[Browser / HTTP Crawlers]
+        B2[JD Extraction and Parsing]
+        B3[Normalization and Enrichment]
+        B4[Deduplication and Role Signature Logic]
+    end
+
+    subgraph Core Application
+        C1[FastAPI Controllers]
+        C2[Service Layer / Use-Case Orchestration]
+        C3[Repository Layer / SQL Logic]
+        C4[(SQLite Operational Store)]
+    end
+
+    subgraph Intelligence and Generation
+        D1[Fit Evaluation Pipeline]
+        D2[Rule Engine / Priority Decisions]
+        D3[LLM-Assisted CV Rewrite]
+        D4[Cover Letter and Portfolio Rendering]
+        D5[Artifact Files]
+    end
+
+    subgraph Operator Experience
+        E1[React / Vite Operator Console]
+        E2[Dashboard and Analytics]
+        E3[Job Review Workspace]
+        E4[Automation Console]
+    end
+
+    A1 --> B1
+    A2 --> B1
+    A3 --> E1
+
+    B1 --> B2
+    B2 --> B3
+    B3 --> B4
+    B4 --> C4
+
+    E1 --> C1
+    C1 --> C2
+    C2 --> C3
+    C3 --> C4
+
+    C2 --> D1
+    C2 --> D2
+    C2 --> D3
+    D3 --> D4
+    D4 --> D5
+
+    D1 --> C4
+    D2 --> C4
+    D4 --> C4
+
+    C4 --> E2
+    C4 --> E3
+    C4 --> E4
+```
+
+## Main Architectural Areas
+
+### 1. Crawl and Ingestion
+
+The first part of the system is responsible for collecting job data from public job pages and search results.
+
+Main responsibilities:
+
+- fetching job cards and detail pages
+- handling multiple extraction paths when page structure varies
+- recovering JD text from richer HTML blocks or metadata
+- storing repeated observations over time instead of a single flattened snapshot
+
+This layer is important because downstream evaluation quality depends directly on JD quality. A weak or partial JD leads to weaker fit scoring and weaker generated artifacts.
+
+### 2. Normalization and Persistence
+
+After crawl, the data is normalized and written into an operational SQLite store.
+
+Main responsibilities:
+
+- canonicalizing job URLs and job IDs
+- building role signatures for deduplication
+- extracting work model and employment type
+- storing observation history, JD content, fit scores, and application tracking
+
+The persistence model is intentionally operational rather than purely analytical. It is designed to support repeated review, incremental updates, and artifact linking from the UI.
+
+### 3. API and Use-Case Layer
+
+The backend uses a layered structure:
+
+- **controller layer**
+  - HTTP boundary, validation, parameter parsing
+- **service layer**
+  - workflow coordination and cross-component orchestration
+- **repository layer**
+  - SQL-heavy reads, writes, sorting, and inference logic
+
+This separation keeps the request handlers thin while allowing business workflows to be reused and evolved independently.
+
+## Intelligence and Decision Flow
 
 ```mermaid
 flowchart TD
-    A[React / Vite Operator UI] --> B[FastAPI Backend API]
-    B --> C[Service Layer]
-    C --> D[Repository Layer]
-    D --> E[(SQLite)]
-
-    C --> F[Automation Runtime]
-    C --> G[CV / Portfolio Generation]
-    C --> H[Analytics Queries]
-
-    F --> E
-    G --> I[Artifacts: CV / Cover Letter / Portfolio PDF]
-    H --> E
+    A[Stored JD + Job Metadata] --> B[Constraint and Fit Evaluation]
+    B --> C[Fit Scores and Issues]
+    C --> D[Priority and Company Rules]
+    D --> E[Operator Review Decision]
+    E --> F[Generate CV / Cover Letter / Portfolio]
+    F --> G[Persist Artifacts and Tracking]
 ```
 
-## Layered Design
+### 4. Evaluation and Rule Engine
 
-### 1. Presentation Layer
-
-The frontend acts as an operator console for reviewing and acting on job data.
+This part of the system turns raw job data into decision support.
 
 Main responsibilities:
 
-- dashboard summaries
-- jobs filtering and review
-- analytics screens
-- automation controls
-- artifact preview
+- evaluating CV-to-JD fit
+- surfacing strengths, gaps, and main issues
+- inferring effective rules such as company-level restrictions
+- helping determine whether a job should be applied, deprioritized, or reviewed manually
 
-The UI is designed for operational clarity, with persistent filters and direct action flows.
+This is where the project shifts from data collection into practical workflow intelligence.
 
-### 2. API Layer
+### 5. LLM-Assisted Generation
 
-The FastAPI layer exposes a thin HTTP boundary around the application workflow.
-
-Typical responsibilities:
-
-- parameter parsing
-- request validation
-- endpoint composition
-- response shaping
-
-This layer is intentionally kept thin so that business logic remains testable and reusable in services.
-
-### 3. Service Layer
-
-The service layer coordinates use cases such as:
-
-- list/detail job workflows
-- CV artifact enrichment
-- rewrite-render execution
-- post-generation persistence
-- automation orchestration
-
-This is where workflow decisions are composed across multiple lower-level components.
-
-### 4. Repository Layer
-
-The repository layer encapsulates persistence and SQL-heavy logic.
+The artifact generation layer combines deterministic rendering with controlled LLM assistance.
 
 Main responsibilities:
 
-- job listing queries
-- filtering and sorting
-- inferred rule evaluation
-- application tracking persistence
-- schedule and run history persistence
+- rewriting CV content based on job context
+- generating supporting text such as cover letters and portfolio summaries
+- keeping outputs tied to job records and versioned artifact folders
+- preserving a structured pipeline from text preparation to final PDF/DOCX outputs
 
-This keeps data access logic centralized and separate from HTTP and UI concerns.
+The LLM is used as part of a larger pipeline, not as the whole system. The surrounding workflow still depends on prompt design, artifact rendering, file management, validation, and persistence.
 
-### 5. Automation and Generation Layer
+### 6. Operator Console
 
-This layer covers the operational workflows that make the project distinctive:
+The frontend is designed as an operator console rather than a marketing-style interface.
 
-- crawl execution
-- scheduled actions
-- fit evaluation
-- CV rewrite flow
-- cover letter generation
-- portfolio artifact generation
+Main responsibilities:
 
-This layer combines deterministic file handling with LLM-assisted content generation where appropriate.
+- dashboard metrics and maps
+- applied-job trend analysis
+- job detail review with fit context
+- CV preview and artifact access
+- manual and automated workflow controls
+
+The emphasis is on fast review, operational clarity, and keeping all job actions in one place.
+
+## Simplified End-to-End Runtime Flow
+
+```text
+1. Crawl jobs from public sources
+2. Extract and normalize job/JD content
+3. Store observations and derived fields in SQLite
+4. Surface jobs in the operator console
+5. Evaluate fit and apply rules
+6. Generate CV / cover letter / portfolio artifacts when needed
+7. Persist artifacts and update tracking status
+8. Continue review and automation from the same console
+```
 
 ## Design Approach
 
-The current project structure intentionally follows a few recognizable engineering patterns:
+The project intentionally applies a few recognizable engineering patterns:
 
 - **Layered architecture**
   - controller -> service -> repository
 - **Repository pattern**
-  - SQL and persistence stay isolated from request handlers
+  - SQL and persistence logic stay isolated from the API boundary
 - **Pipeline-style processing**
-  - generation flows are organized in stages
+  - crawling, evaluation, and generation happen in explicit stages
 - **Rule-based decision layer**
-  - priority flags and company constraints are computed centrally
+  - effective job/company constraints are computed centrally
+- **Artifact-oriented workflow**
+  - generated files are versioned, linked, and reused through the application lifecycle
 
-These choices make the project easier to evolve without tightly coupling the UI, API, and persistence logic.
-
-## Simplified Runtime Flow
-
-```text
-1. Job data is collected or refreshed
-2. Data is normalized and stored
-3. Operators review jobs through the UI
-4. Fit evaluation or artifact generation can be triggered
-5. Generated artifacts are linked back to job records
-6. Tracking and automation continue from the same console
-```
+These choices make the system easier to scale in complexity without collapsing all logic into one script or one controller.
 
 ## Showcase Scope
 
-This architecture note is intentionally limited to a high-level presentation.
+This architecture note is intentionally limited to a presentation-level overview.
 
-It does not attempt to document:
+It does not attempt to expose:
 
-- internal deployment details
-- full automation behavior
-- infrastructure secrets
-- complete production implementation
+- private infrastructure details
+- complete automation internals
+- full prompt design and evaluation heuristics
+- sensitive operational code paths
 
 If needed, a deeper technical walkthrough can be shared separately in a controlled setting.
