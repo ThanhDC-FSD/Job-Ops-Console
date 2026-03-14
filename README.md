@@ -17,7 +17,8 @@ Automation is central to the project, from collecting job data to tracking progr
 
 ## Demo Video
 
-- [Watch the project showcase video](showcase_assets/video/job_ops_project_showcase.mp4)
+- [Watch the project showcase video in this repo](showcase_assets/video/job_ops_project_showcase.mp4)
+- [Public GitHub video link](https://github.com/ThanhDC-FSD/Job-Ops-Console/blob/showcase/showcase_assets/video/job_ops_project_showcase.mp4)
 
 ## Screenshots
 
@@ -37,8 +38,16 @@ Automation is central to the project, from collecting job data to tracking progr
 
 ![Automation Console](showcase_assets/images/automation_console.png)
 
+## Selected Code Snippets
+
+These excerpts are intentionally partial and are provided only to show implementation style and technical depth. They are not enough to run the full application.
+
+- [Backend API and filtering excerpt](showcase_assets/code/backend_api_excerpt.md)
+- [CV generation and artifact workflow excerpt](showcase_assets/code/cv_generation_excerpt.md)
+- [Frontend analytics and interaction excerpt](showcase_assets/code/frontend_analytics_excerpt.md)
+
 ## Notes
 
 - This branch is intended for review and presentation only.
 - Full source code, infrastructure details, and operational logic are not published in this repository.
-- Additional technical discussion or code samples can be shared separately if needed.
+- Additional technical discussion or deeper code walkthroughs can be shared separately if needed.
