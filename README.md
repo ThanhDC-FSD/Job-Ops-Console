@@ -12,8 +12,11 @@ Job Ops Console is one of my portfolio projects and represents part of my broade
 - workflow automation
 - practical product delivery
 - browser-driven operational tooling
+- local CI/CD and deployment orchestration
 
 Automation is central to the project, from collecting job data to tracking progress in a single workflow. For this presentation, I also controlled the video creation flow itself through browser automation and scripted media generation. The narration used in the demo is synthetic and is included only for presentation purposes.
+
+In addition to the application workflow itself, I also built a practical local deployment flow around the project: a sanitized publisher repository, a local bare Git remote, a runtime vault for sensitive files, and a scheduled Windows deployment loop that continuously syncs a stable local environment without exposing private runtime data.
 
 ## Demo Video
 
