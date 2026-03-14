@@ -1,47 +1,60 @@
-# Backend API and Filtering Excerpt
+# Backend API Pattern Excerpt
 
-This excerpt shows part of the backend query pipeline used to filter and prioritize jobs while keeping manual-review and company-level rules in the loop.
+This excerpt highlights the **Controller -> Service -> Repository** separation used in the project. The goal is to keep HTTP concerns, orchestration logic, and persistence logic isolated from each other.
 
 ```python
-def _effective_priority_flag_sql(cls, job_alias: str = "jp", tracking_alias: str = "jat", company_alias: str = "cp") -> str:
-    inferred_company_review = cls._company_under_review_exists_sql(job_alias=job_alias, tracking_alias=tracking_alias)
-    return f"""
-        CASE
-          WHEN TRIM(COALESCE({tracking_alias}.priority_flag, '')) <> '' THEN COALESCE({tracking_alias}.priority_flag, '')
-          WHEN TRIM(COALESCE({company_alias}.priority_flag, '')) <> '' THEN COALESCE({company_alias}.priority_flag, '')
-          WHEN COALESCE({tracking_alias}.is_applied, 0) = 0 AND {inferred_company_review} THEN 'company_under_review'
-          ELSE ''
-        END
-    """
+# controller
+def build_job_router(service: JobService) -> APIRouter:
+    router = APIRouter(prefix="/api", tags=["jobs"])
 
-def list_jobs(...):
-    where = ["1=1"]
-    if stage == "applied":
-        where.append("COALESCE(jat.is_applied, 0) = 1")
-    elif stage == "filtered":
-        where.append("COALESCE(jat.is_applied, 0) = 0")
+    @router.get("/jobs")
+    def jobs(...):
+        return service.list_jobs(
+            stage=stage,
+            country=country,
+            countries=countries,
+            constraint_mode=constraint_mode,
+            summary_only=summary_only,
+            limit=limit,
+            offset=offset,
+        )
 
-    if company:
-        where.append("LOWER(COALESCE(jp.company, '')) LIKE ?")
-        params.append(f"%{company.lower()}%")
+# service
+class JobService:
+    def __init__(self, repo: JobRepository) -> None:
+        self.repo = repo
 
-    select_sql = f"""
-        SELECT
-          jp.id,
-          jp.title,
-          jp.company,
-          COALESCE(jat.cv_source_path, '') AS cv_source_path,
-          {self._effective_priority_flag_sql(...)} AS effective_priority_flag
-        FROM job_posts jp
-        LEFT JOIN job_application_tracking jat ON jat.job_post_id = jp.id
-        LEFT JOIN company_preferences cp
-          ON LOWER(TRIM(COALESCE(cp.company_name, ''))) = LOWER(TRIM(COALESCE(jp.company, '')))
-        WHERE {where_clause}
-    """
+    def list_jobs(...):
+        result = self.repo.list_jobs(...)
+        items = [self._enrich_generated_cv_artifacts(dict(item)) for item in (result.get("items") or [])]
+        return {"total": int(result.get("total") or 0), "items": items}
+
+# repository
+class JobRepository:
+    def list_jobs(...):
+        select_sql = f"""
+            SELECT
+              jp.id,
+              jp.title,
+              jp.company,
+              COALESCE(jat.cv_source_path, '') AS cv_source_path,
+              {self._effective_priority_flag_sql(...)} AS effective_priority_flag
+            FROM job_posts jp
+            LEFT JOIN job_application_tracking jat ON jat.job_post_id = jp.id
+            LEFT JOIN company_preferences cp
+              ON LOWER(TRIM(COALESCE(cp.company_name, ''))) = LOWER(TRIM(COALESCE(jp.company, '')))
+            WHERE {where_clause}
+        """
 ```
 
-What this demonstrates:
+Why this matters:
 
-- SQL-first filtering for performance
-- company-aware application constraints
-- backend-driven prioritization, not just UI sorting
+- `Controller` handles request/response boundaries
+- `Service` handles workflow orchestration and response enrichment
+- `Repository` stays focused on SQL and persistence
+
+Design pattern showcased:
+
+- layered architecture
+- repository pattern
+- dependency injection by constructor composition

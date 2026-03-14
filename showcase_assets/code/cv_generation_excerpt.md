@@ -1,6 +1,6 @@
-# CV Generation and Artifact Workflow Excerpt
+# CV Generation Pipeline Excerpt
 
-This excerpt shows part of the pipeline that generates tailored CV artifacts, versioned outputs, and related files such as PDF, DOCX, cover letter, and portfolio pages.
+This excerpt shows the **pipeline-style orchestration** behind tailored CV generation. The process mixes deterministic artifact handling with LLM-assisted content generation.
 
 ```python
 def run_with_text(...):
@@ -14,28 +14,32 @@ def run_with_text(...):
         run_folder=run_folder,
     )
 
-    company_documents_dir = documents_day_dir / company_folder
     version_number = self._next_artifact_version(company_documents_dir)
     version_dir = company_documents_dir / f"CV{version_number}"
     version_dir.mkdir(parents=True, exist_ok=True)
-
-    docx_out = self._reserve_output_path(version_dir / f"{output_basename}.docx")
-    pdf_out = docx_out.with_suffix(".pdf")
-    portfolio_out = self._reserve_output_path(version_dir / f"{self._build_portfolio_output_basename(output_basename)}.html")
 
     llm_payload = self._call_llm(...)
     cv_text = str(llm_payload.get("cv_text", "")).strip()
     summary = str(llm_payload.get("summary", "")).strip()
 
     cv_out.write_text(cv_text + "\\n", encoding="utf-8")
-    portfolio_out.write_text(
-        self._build_portfolio_html(..., summary=summary, cv_text=cv_text),
+    portfolio_txt_out.write_text(
+        self._build_portfolio_tagged_text(..., summary=summary),
         encoding="utf-8",
     )
+
+    self._run_subprocess([... render_cv_docx.py ..., str(cv_out), ...])
+    self._run_subprocess([... render_cv_docx.py ..., str(portfolio_txt_out), ...])
 ```
 
-What this demonstrates:
+Why this matters:
 
-- artifact versioning with `CV1`, `CV2`, `CV3`
-- generated document lifecycle
-- LLM-assisted CV tailoring plus deterministic file handling
+- generation is structured as a sequence of well-defined stages
+- artifact versioning is deterministic
+- rendering is delegated to dedicated scripts instead of mixing concerns
+
+Design pattern showcased:
+
+- pipeline / staged processing
+- separation of generation vs rendering
+- versioned artifact management

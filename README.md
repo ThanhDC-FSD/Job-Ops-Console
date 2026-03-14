@@ -40,7 +40,7 @@ Automation is central to the project, from collecting job data to tracking progr
 
 ## Selected Code Snippets
 
-These excerpts are intentionally partial and are provided only to show implementation style and technical depth. They are not enough to run the full application.
+These excerpts are intentionally partial and are provided only to show implementation style, design choices, and technical depth. They are not enough to run the full application.
 
 - [Backend API and filtering excerpt](showcase_assets/code/backend_api_excerpt.md)
 - [CV generation and artifact workflow excerpt](showcase_assets/code/cv_generation_excerpt.md)

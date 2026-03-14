@@ -1,123 +1,141 @@
-# Basic Project Architecture
+# Project Architecture Overview
 
-This document is intentionally kept at a **basic showcase level**. It is meant to help reviewers understand the overall structure of the project without exposing full implementation or operational details.
+This document is intentionally written at a **showcase level**. It is meant to present the structure and engineering direction of the project without exposing operationally sensitive details.
 
-## Purpose
+## System Goal
 
-Job Ops Console is designed as an internal-style workflow application for:
+Job Ops Console is a workflow-oriented application designed to centralize:
 
-- collecting job data
-- organizing and filtering opportunities
-- evaluating fit against a CV profile
-- generating application artifacts
-- tracking application progress in one operational interface
+- job collection
+- filtering and prioritization
+- fit evaluation
+- CV and portfolio artifact generation
+- application tracking
+- operator-facing analytics and automation
 
-## High-Level Structure
+The project is intentionally practical: it focuses on repeatable workflow execution rather than a purely demo-oriented UI.
 
-```text
-Browser UI (React / Vite)
-    |
-    v
-Backend API (FastAPI)
-    |
-    +--> SQLite data store
-    |
-    +--> Automation actions / scheduled jobs
-    |
-    +--> CV rewrite and artifact generation
-    |
-    +--> Analytics and reporting views
+## Architecture Diagram
+
+```mermaid
+flowchart TD
+    A[React / Vite Operator UI] --> B[FastAPI Backend API]
+    B --> C[Service Layer]
+    C --> D[Repository Layer]
+    D --> E[(SQLite)]
+
+    C --> F[Automation Runtime]
+    C --> G[CV / Portfolio Generation]
+    C --> H[Analytics Queries]
+
+    F --> E
+    G --> I[Artifacts: CV / Cover Letter / Portfolio PDF]
+    H --> E
 ```
 
-## Main Layers
+## Layered Design
 
-### 1. Frontend
+### 1. Presentation Layer
 
-The frontend is a React-based operator console.
+The frontend acts as an operator console for reviewing and acting on job data.
 
-It is responsible for:
+Main responsibilities:
 
-- dashboard visualization
-- jobs table and filters
-- analytics views
+- dashboard summaries
+- jobs filtering and review
+- analytics screens
 - automation controls
-- previewing CV, portfolio, and related artifacts
+- artifact preview
 
-This layer is designed for repeated operational use rather than a public-facing marketing interface.
+The UI is designed for operational clarity, with persistent filters and direct action flows.
 
-### 2. Backend API
+### 2. API Layer
 
-The backend is built around FastAPI and exposes endpoints for:
+The FastAPI layer exposes a thin HTTP boundary around the application workflow.
 
-- job listing and filtering
-- job detail retrieval
-- analytics queries
-- automation triggers
-- CV rewrite/generation workflows
-- file preview and artifact access
+Typical responsibilities:
 
-This layer acts as the orchestration point between the UI, stored data, and generation/automation logic.
+- parameter parsing
+- request validation
+- endpoint composition
+- response shaping
 
-### 3. Data Layer
+This layer is intentionally kept thin so that business logic remains testable and reusable in services.
 
-SQLite is used as the working datastore for:
+### 3. Service Layer
 
-- crawled job records
-- normalized location and language metadata
-- fit evaluation results
-- application tracking status
-- generated artifact paths
-- schedule and automation run history
+The service layer coordinates use cases such as:
 
-For showcase purposes, this is presented as a lightweight operational datastore.
+- list/detail job workflows
+- CV artifact enrichment
+- rewrite-render execution
+- post-generation persistence
+- automation orchestration
 
-### 4. Automation Layer
+This is where workflow decisions are composed across multiple lower-level components.
 
-Automation is a core part of the project.
+### 4. Repository Layer
 
-It covers workflows such as:
+The repository layer encapsulates persistence and SQL-heavy logic.
+
+Main responsibilities:
+
+- job listing queries
+- filtering and sorting
+- inferred rule evaluation
+- application tracking persistence
+- schedule and run history persistence
+
+This keeps data access logic centralized and separate from HTTP and UI concerns.
+
+### 5. Automation and Generation Layer
+
+This layer covers the operational workflows that make the project distinctive:
 
 - crawl execution
-- post-processing
+- scheduled actions
 - fit evaluation
-- CV generation
-- apply-flow support
-- scheduled operational tasks
+- CV rewrite flow
+- cover letter generation
+- portfolio artifact generation
 
-This is one of the main areas that reflects my developer workflow and product-delivery style.
+This layer combines deterministic file handling with LLM-assisted content generation where appropriate.
 
-### 5. Artifact Generation Layer
+## Design Approach
 
-The application can generate and manage artifacts such as:
+The current project structure intentionally follows a few recognizable engineering patterns:
 
-- tailored CV text
-- DOCX/PDF CV output
-- cover letter files
-- portfolio PDF
-- showcase video references
+- **Layered architecture**
+  - controller -> service -> repository
+- **Repository pattern**
+  - SQL and persistence stay isolated from request handlers
+- **Pipeline-style processing**
+  - generation flows are organized in stages
+- **Rule-based decision layer**
+  - priority flags and company constraints are computed centrally
 
-This layer combines rule-based processing, rendering scripts, and LLM-assisted content generation where appropriate.
+These choices make the project easier to evolve without tightly coupling the UI, API, and persistence logic.
 
-## Simplified Flow
+## Simplified Runtime Flow
 
 ```text
 1. Job data is collected or refreshed
-2. Backend stores and normalizes the data
-3. UI presents jobs and analytics
-4. Fit evaluation and CV generation can be triggered
-5. Generated artifacts are stored and linked back to the job record
-6. Operators review, track, and continue the application workflow
+2. Data is normalized and stored
+3. Operators review jobs through the UI
+4. Fit evaluation or artifact generation can be triggered
+5. Generated artifacts are linked back to job records
+6. Tracking and automation continue from the same console
 ```
 
-## Showcase Note
+## Showcase Scope
 
-This architecture file is intentionally basic and is included only for showcase purposes.
+This architecture note is intentionally limited to a high-level presentation.
 
-It is not intended to document:
+It does not attempt to document:
 
-- full deployment topology
-- production secrets or infrastructure
-- internal implementation details
-- proprietary automation logic
+- internal deployment details
+- full automation behavior
+- infrastructure secrets
+- complete production implementation
 
 If needed, a deeper technical walkthrough can be shared separately in a controlled setting.
