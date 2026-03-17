@@ -66,6 +66,7 @@ This note is intentionally written at a showcase level. It highlights the main s
 
 - **Start both backend + frontend**: execute `scripts\bat\run_job_ops_all.bat start all`. The script sequentially stops any leftovers, starts `run_job_ops_backend.bat` (uvicorn on 127.0.0.1:8102) and then `run_job_ops_frontend.bat` (npm dev server on 127.0.0.1:5182). If you only need one side, run the dedicated batch file instead (`run_job_ops_backend.bat` or `run_job_ops_frontend.bat`).
 - **Smoke checks**: use `curl http://127.0.0.1:8102/health` to confirm the API responds, and open `http://127.0.0.1:5182` in a browser to ensure the FE loads without CORS errors (logs in Chrome console prefixed with `[api]` show request/response details).
+- **Idle job sync**: the backend scheduler now keeps a low-priority `idle_db_sync` trigger (runs every 15 minutes) that copies `input/crawled_job/linkedin_jobs_jd.sqlite` into the API/CD schema copy when there are no active automation runs. This keeps both dev/CD DBs aligned while ensuring that active jobs are always prioritized and the sync never races with ongoing ETL work. Check `apps/backend/app/logs/job_ops.scheduler.log` for “Idle DB sync” entries and for warnings when the source file is missing.
 
 ## CI/CD verification commands
 
