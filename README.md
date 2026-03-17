@@ -61,3 +61,17 @@ This note is intentionally written at a showcase level. It highlights the main s
 - This branch is intended for review and presentation only.
 - Full source code, infrastructure details, and operational logic are not published in this repository.
 - Additional technical discussion or deeper code walkthroughs can be shared separately if needed.
+
+## Running & verifying the dev servers
+
+- **Start both backend + frontend**: execute `scripts\bat\run_job_ops_all.bat start all`. The script sequentially stops any leftovers, starts `run_job_ops_backend.bat` (uvicorn on 127.0.0.1:8102) and then `run_job_ops_frontend.bat` (npm dev server on 127.0.0.1:5182). If you only need one side, run the dedicated batch file instead (`run_job_ops_backend.bat` or `run_job_ops_frontend.bat`).
+- **Smoke checks**: use `curl http://127.0.0.1:8102/health` to confirm the API responds, and open `http://127.0.0.1:5182` in a browser to ensure the FE loads without CORS errors (logs in Chrome console prefixed with `[api]` show request/response details).
+
+## CI/CD verification commands
+
+- **Prepare schema copy**: before CI/CD runs touch the crawl DB clone with `scripts\python\clone_job_db.py --target apps\backend\app\job_ops_schema.sqlite --force`. Point `JOB_DB_PATH` (via `.env` or pipeline env) at this new file so automation and the API never fight over the original `input/crawled_job/linkedin_jobs_jd.sqlite`.
+- **Backend/CD execution**: run `scripts\bat\run_job_ops_backend.bat` (with `RUN_STARTUP_BOOTSTRAP_ACTIONS=1` if you want to simulate scheduled bootstrap work) to exercise the CD-friendly service; backend logs land in `apps/backend/app/logs/backend.log`.
+- **CD server host/port**: the CD-friendly Uvicorn service is bound to `127.0.0.1:8102` (mirroring `BACKEND_PORT`), so any downstream consumers or build-time smoke checks should target `http://127.0.0.1:8102` for health checks and API validation.
+- **Frontend build**: run `npm run build` from `apps/frontend` to validate the CD artifact; set `VITE_API_BASE` if the backend host/port differ from 127.0.0.1:8102.
+
+Capture the newly generated log files (`backend.log`, `backend.error.log`, `etl_runs/*.log`) and FE console output if you need to troubleshoot CI failures.
