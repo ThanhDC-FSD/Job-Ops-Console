@@ -162,6 +162,15 @@ Main responsibilities:
 
 The LLM is used as part of a larger pipeline, not as the whole system. The surrounding workflow still depends on prompt design, artifact rendering, file management, validation, and persistence.
 
+## Ops & Deployment Sync
+
+The showcase keeps the dev and CD runtimes intentionally aligned but separated: the local UI runs on `127.0.0.1:5182`, while the CD deployment listens on `127.0.0.1:9999`, and both endpoints are whitelisted by the FastAPI CORS layer so the operator console can hit either host without triggering CORS failures.
+
+- **Scheduled orchestration**: an `apscheduler` runtime refreshes automation cron jobs from the `automation_schedules` table and also registers a low-priority `idle_db_sync` trigger that fires every 15 minutes. The idle job copies `input/crawled_job/linkedin_jobs_jd.sqlite` into the API/CD schema copy (`apps/backend/app/job_ops_schema.sqlite`) only when there are no active automation runs, so the shared schema stays up to date without conflicting with active ETL pipelines.
+- **Priority handling**: the automation service checks for running jobs before copying, logs a skip when work is ongoing, and surfaces a warning if the source database is missing, ensuring downstream sync happens only when the system is quiet and all higher-priority ETL work has already finished.
+
+These safeguards keep the day-to-day workflow responsive while still letting the background sync operate “slowly but steadily,” just as required for a showcase-ready deployment.
+
 ### 6. Operator Console
 
 The frontend is designed as an operator console rather than a marketing-style interface.
