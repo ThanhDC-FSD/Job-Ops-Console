@@ -151,16 +151,17 @@ This is where the project shifts from data collection into practical workflow in
 
 ### 5. LLM-Assisted Generation
 
-The artifact generation layer combines deterministic rendering with controlled LLM assistance.
+The artifact generation layer combines deterministic rendering with controlled LLM assistance and now includes a robust RAG/rewrite pipeline as described in `docs/rag_workflow_v1.md`.
 
 Main responsibilities:
 
-- rewriting CV content based on job context
-- generating supporting text such as cover letters and portfolio summaries
-- keeping outputs tied to job records and versioned artifact folders
-- preserving a structured pipeline from text preparation to final PDF/DOCX outputs
+- rewriting CV content based on job context using the JD analyzer → evidence mapper → planner → generator flow, so each bullet references explicit evidence IDs.
+- generating supporting text such as cover letters and portfolio summaries while enforcing mandatory cover-letter guards, fallback templates, and JSON contracts.
+- keeping outputs tied to job records and versioned artifact folders, embedding schema/prompt/retrieval metadata into `job_generated_artifact_sets`, rendered files, and logs.
+- orchestrating hybrid retrieval (semantic + keyword + metadata scoring) to feed the offline qwen2.5 gateway, while routing low-confidence queries into deterministic fallbacks.
+- preserving a structured pipeline from text preparation to final PDF/DOCX outputs with validators and no-op guards ensuring `cv_enhanced` flags only pass with measurable diff/coverage improvements.
 
-The LLM is used as part of a larger pipeline, not as the whole system. The surrounding workflow still depends on prompt design, artifact rendering, file management, validation, and persistence.
+The LLM acts as a controlled worker inside this larger workflow. The surrounding pipeline handles prompt construction, evidence normalization, fallback templates, persistence, state transitions, and observability/tuning as laid out in the RAG workflow reference.
 
 ### 6. Operator Console
 
