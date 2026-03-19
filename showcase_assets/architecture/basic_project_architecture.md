@@ -151,17 +151,29 @@ This is where the project shifts from data collection into practical workflow in
 
 ### 5. LLM-Assisted Generation
 
-The artifact generation layer combines deterministic rendering with controlled LLM assistance and now includes a robust RAG/rewrite pipeline as described in `docs/rag_workflow_v1.md`.
+The artifact generation layer blends deterministic rendering with a controlled RAG/LLM pipeline described in `docs/rag_workflow_v1.md`.
 
 Main responsibilities:
 
-- rewriting CV content based on job context using the JD analyzer → evidence mapper → planner → generator flow, so each bullet references explicit evidence IDs.
-- generating supporting text such as cover letters and portfolio summaries while enforcing mandatory cover-letter guards, fallback templates, and JSON contracts.
-- keeping outputs tied to job records and versioned artifact folders, embedding schema/prompt/retrieval metadata into `job_generated_artifact_sets`, rendered files, and logs.
-- orchestrating hybrid retrieval (semantic + keyword + metadata scoring) to feed the offline qwen2.5 gateway, while routing low-confidence queries into deterministic fallbacks.
-- preserving a structured pipeline from text preparation to final PDF/DOCX outputs with validators and no-op guards ensuring `cv_enhanced` flags only pass with measurable diff/coverage improvements.
+- rewriting CV content using the JD analyzer -> evidence mapper -> planner -> generator flow so each bullet cites explicit evidence IDs and observes the JSON contract.
+- generating cover letters and supporting portfolio content while enforcing mandatory cover-letter guards, fallback templates, and quality validators.
+- tying outputs to job records and artifact sets while embedding schema/prompt/retrieval metadata into `job_generated_artifact_sets`, rendered files, and logs for traceability.
+- orchestrating hybrid retrieval (semantic + keyword + metadata scoring) for the offline qwen2.5 gateway, rerouting low-confidence or unsupported queries into deterministic fallbacks.
+- keeping a structured pipeline from text preparation through final PDF/DOCX outputs with validators and no-op guards ensuring `cv_enhanced` flags only pass with measurable diff/coverage improvements.
 
-The LLM acts as a controlled worker inside this larger workflow. The surrounding pipeline handles prompt construction, evidence normalization, fallback templates, persistence, state transitions, and observability/tuning as laid out in the RAG workflow reference.
+The LLM operates inside this controlled workflow; prompt construction, evidence normalization, fallback templates, persistence, state transitions, and observability hooks are all managed by the surrounding pipeline referenced in the RAG document.
+
+### 5.1 RAG + Offline LLM Flow (showcase-ready)
+
+This new architecture note explicitly showcases yesterday's RAG + offline LLM work:
+
+- **Layered flow:** query processor -> intent classifier -> retriever -> reranker -> generator -> validator -> persistence/audit loop, with metadata (routing reason, score breakdown, validator failure) captured per transition.
+- **Evidence guards:** confidence scoring, coverage deltas, diff thresholds, and no-op checks gate retries, fallback routes, and `cv_enhanced` updates so every output is evidence-backed.
+- **Hybrid retrieval filters:** location, visa, seniority, and freshness filters run before reranking; the scoring mix (semantic 55%, keyword 30%, metadata 15%) keeps retrieval fair yet precise.
+- **Retry/fallback hierarchy:** structured prompt variants (full, retry, fallback) with token budgets, deterministic template fallbacks, and minimal-safe outputs keep the pipeline resilient on CPU-bound hardware.
+- **Structured contracts:** JSON outputs include `jd_analysis`, `evidence_map`, `fit_assessment`, `cv_rewrite`, `cover_letter`, and `quality_checks`, with validator-driven flags such as `cv_enhanced` and `cover_letter_present`.
+
+This explicit layer makes the retrieval, generation, and validation work visible while still masking sensitive internals, which is ideal for showcasing the new RAG + LLM capabilities.
 
 ### 6. Operator Console
 
