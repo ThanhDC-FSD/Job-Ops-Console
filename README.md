@@ -76,3 +76,9 @@ This note is intentionally written at a showcase level. It highlights the main s
 - **Frontend build**: run `npm run build` from `apps/frontend` to validate the CD artifact; set `VITE_API_BASE` if the backend host/port differ from 127.0.0.1:8102.
 
 Capture the newly generated log files (`backend.log`, `backend.error.log`, `etl_runs/*.log`) and FE console output if you need to troubleshoot CI failures.
+
+## Explanation enrichment pipeline
+
+- Use `scripts/enrich_explanations.py` to fill missing explanations from an LLM. The script reads `learning_questions.explanation_en`/`explanation_vi`, grabs up to three `learning_question_chunks`, and writes bilingual explanations back into the database while logging provenance to `apps/backend/app/logs/explanation_enrichment.log`.
+- Provide `OPENAI_API_KEY` (or `ANTHROPIC_API_KEY` and `--provider anthropic`) in your shell, then run `python scripts/enrich_explanations.py --limit 10` to process the first ten gaps. Add `--dry-run` to inspect the generated text without writing it to the DB.
+- Optionally override the model names via `EXPLANATION_OPENAI_MODEL` (defaults to `gpt-4o-mini`) or `EXPLANATION_ANTHROPIC_MODEL` (defaults to `claude-3.5-opus`). The script stores provider, model, and chunk indexes in the log for auditing.
