@@ -91,6 +91,7 @@ These excerpts are intentionally partial and are provided only to show implement
 - [Backend API and filtering excerpt](showcase_assets/code/backend_api_excerpt.md)
 - [CV generation and artifact workflow excerpt](showcase_assets/code/cv_generation_excerpt.md)
 - [Frontend analytics and interaction excerpt](showcase_assets/code/frontend_analytics_excerpt.md)
+- [Learning quiz and knowledge workflow excerpt](showcase_assets/code/learning_quiz_excerpt.md)
 
 ## Architecture Overview
 

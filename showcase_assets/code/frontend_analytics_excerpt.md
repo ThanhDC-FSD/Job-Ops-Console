@@ -1,43 +1,102 @@
-# Rule-Based Prioritization Excerpt
+# Frontend Analytics And Interaction Excerpt
 
-This excerpt focuses on the **rule-based decision layer** used to prioritize or suppress jobs depending on manual rules and inferred company-level conditions.
+This excerpt shows how the React console turns raw backend metrics into **interactive operational views** without burying logic in one giant component.
 
-```python
-@classmethod
-def _effective_priority_flag_sql(cls, job_alias: str = "jp", tracking_alias: str = "jat", company_alias: str = "cp") -> str:
-    inferred_company_review = cls._company_under_review_exists_sql(job_alias=job_alias, tracking_alias=tracking_alias)
-    return f"""
-        CASE
-          WHEN TRIM(COALESCE({tracking_alias}.priority_flag, '')) <> '' THEN COALESCE({tracking_alias}.priority_flag, '')
-          WHEN TRIM(COALESCE({company_alias}.priority_flag, '')) <> '' THEN COALESCE({company_alias}.priority_flag, '')
-          WHEN COALESCE({tracking_alias}.is_applied, 0) = 0 AND {inferred_company_review} THEN 'company_under_review'
-          ELSE ''
-        END
-    """
+## Applied Trend Timeline
 
-@staticmethod
-def _priority_sort_bucket(item: dict[str, Any]) -> tuple[int, int]:
-    flag = str(item.get("effective_priority_flag", "") or "").strip().lower()
-    is_manual_only = 1 if flag in {
-        "manual_only",
-        "company_under_review",
-        "onsite_only",
-        "full_time_only",
-        "part_time_only",
-    } else 0
-    is_low = 1 if flag == "low_priority" else 0
-    is_closed = 1 if flag == "closed_no_longer_accepting" else 0
-    return (is_manual_only, is_low + is_closed)
+The applied trend chart stores zoom state, supports wheel zoom, drag-to-pan, and keeps the latest operator position in session storage.
+
+```jsx
+function handleChartWheel(event) {
+  const node = scrollRef.current
+  if (!node) return
+  const rect = node.getBoundingClientRect()
+  const pointerRatio = rect.width > 0
+    ? (event.clientX - rect.left + node.scrollLeft) / Math.max(node.scrollWidth, 1)
+    : 0.5
+  const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX) ? event.deltaY : event.deltaX
+  if (!delta) return
+
+  const nextZoom = Math.max(0.25, Math.min(3, Math.round((zoomX + (delta < 0 ? 0.15 : -0.15)) * 100) / 100))
+  if (nextZoom !== zoomX) {
+    const currentAbsoluteX = pointerRatio * node.scrollWidth
+    savedScrollLeftRef.current = Math.max(0, currentAbsoluteX - ((event.clientX - rect.left) || 0))
+    setZoomX(nextZoom)
+  }
+  event.preventDefault()
+}
 ```
 
 Why this matters:
 
-- business rules can come from multiple sources
-- explicit user rules and inferred rules are merged consistently
-- prioritization remains explainable instead of hidden in ad hoc UI logic
+- long operator timelines remain usable without leaving the current page
+- zoom state persists across navigation, which helps daily review work
+- the interaction cost stays low even when the dataset grows over time
 
-Design pattern showcased:
+## Country Density Map
 
-- rule evaluation layer
-- strategy-like prioritization by computed flag
-- centralized decision logic
+The world map keeps zoom and pan state locally and converts backend country counts into a navigable heat-style layer.
+
+```jsx
+const densityMap = useMemo(() => {
+  const map = new Map()
+  for (const item of items || []) {
+    const country = String(item?.country || '').trim()
+    const key = normalizeCountryKey(country)
+    if (!key) continue
+    const current = map.get(key) || { country, jobs: 0, applied_jobs: 0 }
+    current.jobs += Number(item?.jobs || 0)
+    current.applied_jobs += Number(item?.applied_jobs || 0)
+    map.set(key, current)
+  }
+  return map
+}, [items])
+
+function updateTooltip(event, item, featureName) {
+  const rect = event.currentTarget.ownerSVGElement?.getBoundingClientRect()
+  if (!rect) return
+  setTooltip({
+    x: event.clientX - rect.left + 12,
+    y: event.clientY - rect.top + 12,
+    country: item?.country || featureName,
+    jobs: Number(item?.jobs || 0),
+    appliedJobs: Number(item?.applied_jobs || 0),
+  })
+}
+```
+
+Why this matters:
+
+- analytics stay actionable because every country interaction can open filtered job queues
+- the map gives both coverage and application context instead of only one metric
+- view state is kept in the browser, which fits a local-first tool on lower-spec hardware
+
+## Analytics-To-Workflow Bridge
+
+The analytics screen is not read-only. It can push the operator straight back into a filtered jobs view.
+
+```jsx
+function openJobsWithPreset(preset) {
+  setJobsPreset({ ...preset, limit: '50', offset: '0' })
+  setActive('jobs')
+}
+
+if (active === 'dashboard') {
+  return <DashboardTab ... onOpenJobs={openJobsWithPreset} />
+}
+if (active === 'analytics') {
+  return <AnalyticsTab ... onOpenJobs={openJobsWithPreset} />
+}
+```
+
+Why this matters:
+
+- charts do not become dead-end reporting widgets
+- operators can jump from evidence to action in one click
+- the console feels like one workflow rather than isolated pages
+
+Design patterns showcased:
+
+- stateful analytics components
+- persistent UI state for local-first workflows
+- drill-down navigation from metrics into actionable queues
