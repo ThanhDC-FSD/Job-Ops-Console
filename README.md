@@ -18,10 +18,29 @@ Automation is central to the project, from collecting job data to tracking progr
 
 In addition to the application workflow itself, I also built a practical local deployment flow around the project: a sanitized publisher repository, a local bare Git remote, a runtime vault for sensitive files, and a scheduled Windows deployment loop that continuously syncs a stable local environment without exposing private runtime data.
 
+## Current Workflow (As Built)
+
+1. Crawl job pages with Playwright + HTML parsers, retain repeated observations, and normalize job metadata (URL canonicalization, role signatures, location, work model, employment type).
+2. Persist operational data in SQLite (job_posts, crawl runs, embeddings, fit scores, application tracking), with periodic DB cloning to keep the API schema copy clean.
+3. Run fit evaluation and rule-based gating (priority flags, Easy Apply detection, duplicates, country eligibility, constraint checks).
+4. Generate artifacts through an evidence-first RAG pipeline (analysis ? evidence map ? planner ? generator ? validators ? persistence).
+5. Render CV / cover letter / portfolio outputs and attach them to the job record with audit-friendly metadata.
+6. Review, apply, and track outcomes inside the operator console with analytics, maps, and automation controls.
+
+## Current Stack Snapshot
+
+- Backend: FastAPI + Uvicorn + Pydantic, APScheduler, SQLite, httpx
+- Frontend: React + Vite, D3 Geo, TopoJSON, world-atlas
+- Crawl/ETL: Playwright, BeautifulSoup, structured parsers
+- Retrieval/RAG: sentence-transformers + FAISS, hybrid scoring, rerank + validators, offline qwen2.5 gateway
+- Ops: local bare Git remote, scheduled Windows deploy loop, sanitized publisher repo
+
 ## Demo Video
 
 - [Watch the project showcase video in this repo](showcase_assets/video/job_ops_project_showcase.mp4)
 - [Public GitHub video link](https://github.com/ThanhDC-FSD/Job-Ops-Console/blob/showcase/showcase_assets/video/job_ops_project_showcase.mp4)
+
+The demo focuses on the end-to-end workflow: dashboard visibility, geo analytics, job review workspace, and the automation/LLM pipeline used to produce application artifacts.
 
 ## Screenshots
 
@@ -37,9 +56,32 @@ In addition to the application workflow itself, I also built a practical local d
 
 ![Jobs Workspace](showcase_assets/images/jobs_workspace.png)
 
+### Applied Jobs Workspace
+
+![Applied Jobs Workspace](showcase_assets/images/applied_jobs_workspace.png)
+
+### Analytics
+
+![Analytics](showcase_assets/images/analytics_reposts.png)
+
+### Learning Quiz
+
+![Learning Quiz](showcase_assets/images/learning_quiz.png)
+
+### Learning Knowledge
+
+![Learning Knowledge](showcase_assets/images/learning_knowledge.png)
+
 ### Automation Console
 
 ![Automation Console](showcase_assets/images/automation_console.png)
+
+### Workflow Steps
+
+![Workflow Step 1](showcase_assets/images/workflow_step_1.png)
+![Workflow Step 2](showcase_assets/images/workflow_step_2.png)
+![Workflow Step 3](showcase_assets/images/workflow_step_3.png)
+![Workflow Step 4](showcase_assets/images/workflow_step_4.png)
 
 ## Selected Code Snippets
 
@@ -66,7 +108,8 @@ This note is intentionally written at a showcase level. It highlights the main s
 
 - **Start both backend + frontend**: execute `scripts\bat\run_job_ops_all.bat start all`. The script sequentially stops any leftovers, starts `run_job_ops_backend.bat` (uvicorn on 127.0.0.1:8102) and then `run_job_ops_frontend.bat` (npm dev server on 127.0.0.1:5182). If you only need one side, run the dedicated batch file instead (`run_job_ops_backend.bat` or `run_job_ops_frontend.bat`).
 - **Smoke checks**: use `curl http://127.0.0.1:8102/health` to confirm the API responds, and open `http://127.0.0.1:5182` in a browser to ensure the FE loads without CORS errors (logs in Chrome console prefixed with `[api]` show request/response details).
-- **Idle job sync**: the backend scheduler now keeps a low-priority `idle_db_sync` trigger (runs every 15 minutes) that copies `input/crawled_job/linkedin_jobs_jd.sqlite` into the API/CD schema copy when there are no active automation runs. This keeps both dev/CD DBs aligned while ensuring that active jobs are always prioritized and the sync never races with ongoing ETL work. Check `apps/backend/app/logs/job_ops.scheduler.log` for “Idle DB sync” entries and for warnings when the source file is missing.
+- **Idle job sync**: the backend scheduler now keeps a low-priority `idle_db_sync` trigger (runs every 15 minutes) that copies `input/crawled_job/linkedin_jobs_jd.sqlite` into the API/CD schema copy when there are no active automation runs. This keeps both dev/CD DBs aligned while ensuring that active jobs are always prioritized and the sync never races with ongoing ETL work. Check `apps/backend/app/logs/job_ops.scheduler.log` for "Idle DB sync" entries and for warnings when the source file is missing.
+- **Offline LLM gateway**: the backend is configured to talk to a local LLM gateway (`OPENAI_BASE_URL=http://127.0.0.1:8102/v1`) for evidence-first CV/cover letter generation. If the gateway is down, the pipeline will fall back to deterministic templates and log the reason in the artifact metadata.
 
 ## CI/CD verification commands
 

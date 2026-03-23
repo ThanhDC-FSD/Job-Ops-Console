@@ -5,10 +5,7 @@
 !showcase_assets/video/
 !showcase_assets/video/job_ops_project_showcase.mp4
 !showcase_assets/images/
-!showcase_assets/images/dashboard_overview.png
-!showcase_assets/images/jobs_density_map.png
-!showcase_assets/images/jobs_workspace.png
-!showcase_assets/images/automation_console.png
+!showcase_assets/images/**
 !showcase_assets/code/
 !showcase_assets/code/backend_api_excerpt.md
 !showcase_assets/code/cv_generation_excerpt.md

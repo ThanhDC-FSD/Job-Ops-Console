@@ -15,6 +15,15 @@ Job Ops Console is a workflow-oriented application for managing a job-search pro
 
 The project is not just a CRUD dashboard. Its core value comes from combining **automation**, **data processing**, and **LLM-assisted artifact generation** into one operational workflow.
 
+## Current Operating Constraints
+
+The system is intentionally built for an offline-friendly, CPU-only environment:
+
+- local-first storage using SQLite (no external DB dependencies)
+- retrieval and RAG pipelines tuned for low memory and token budgets
+- deterministic fallbacks when the LLM gateway is unavailable
+- audit-friendly outputs with versioned JSON contracts and logs
+
 ## High-Level Architecture
 
 ```mermaid
@@ -149,9 +158,15 @@ Main responsibilities:
 
 This is where the project shifts from data collection into practical workflow intelligence.
 
+### 4.1 Fit Evaluation Details (current)
+
+- constraint checks (location, visa, remote/onsite) happen before ranking
+- job/company rules mark priority, Easy Apply, and duplicate reposts
+- fit scoring outputs "why not" reasons so operators can quickly triage
+
 ### 5. LLM-Assisted Generation
 
-The artifact generation layer blends deterministic rendering with a controlled RAG/LLM pipeline described in `docs/rag_workflow_v1.md`.
+The artifact generation layer blends deterministic rendering with a controlled RAG/LLM pipeline described in `docs/05_rag_workflow_v1.md`.
 
 Main responsibilities:
 
@@ -162,6 +177,29 @@ Main responsibilities:
 - keeping a structured pipeline from text preparation through final PDF/DOCX outputs with validators and no-op guards ensuring `cv_enhanced` flags only pass with measurable diff/coverage improvements.
 
 The LLM operates inside this controlled workflow; prompt construction, evidence normalization, fallback templates, persistence, state transitions, and observability hooks are all managed by the surrounding pipeline referenced in the RAG document.
+
+### 5.2 RAG + Validation Pipeline (current)
+
+```mermaid
+flowchart LR
+    A[JD + CV Inputs] --> B[Query Processor]
+    B --> C[Intent Classifier]
+    C --> D[Hybrid Retriever]
+    D --> E[Reranker + Scoring Router]
+    E --> F[Evidence Mapper + Planner]
+    F --> G[Offline LLM Generator]
+    G --> H[Validators + No-op Guards]
+    H --> I[Deterministic Fallbacks]
+    H --> J[Persist JSON Contract + Artifacts]
+    I --> J
+```
+
+Key behaviors in the current flow:
+
+- hybrid retrieval scores combine semantic, keyword, and metadata signals
+- evidence mapping gates every generation step and prevents hallucinated claims
+- validators enforce cover-letter presence, diff thresholds, and constraint rules
+- fallback templates guarantee outputs even when evidence is thin or LLM fails
 
 ### 5.1 RAG + Offline LLM Flow (showcase-ready)
 
@@ -206,9 +244,10 @@ The emphasis is on fast review, operational clarity, and keeping all job actions
 3. Store observations and derived fields in SQLite
 4. Surface jobs in the operator console
 5. Evaluate fit and apply rules
-6. Generate CV / cover letter / portfolio artifacts when needed
-7. Persist artifacts and update tracking status
-8. Continue review and automation from the same console
+6. Build evidence map and run RAG rewrite with validators
+7. Generate CV / cover letter / portfolio artifacts when needed
+8. Persist artifacts and update tracking status
+9. Continue review and automation from the same console
 ```
 
 ## Design Approach
@@ -225,6 +264,28 @@ The project intentionally applies a few recognizable engineering patterns:
   - effective job/company constraints are computed centrally
 - **Artifact-oriented workflow**
   - generated files are versioned, linked, and reused through the application lifecycle
+- **Evidence-first generation**
+  - outputs always reference explicit evidence and are blocked when unsupported
+- **Validator-driven safety**
+  - no-op checks, coverage deltas, and constraint filters guard quality
+
+## Observability and Audit Trail
+
+The current system records structured metadata across the pipeline:
+
+- routing reasons (RAG vs fallback) and score breakdowns
+- validator outcomes and fallback reasons
+- schema versions and generation timestamps
+- log files under `tmp_seek_automation/logs` for replay and analysis
+
+## Local CI/CD and Data Safety
+
+The current workflow includes a local CI/CD loop:
+
+- sanitized publisher repo + local bare Git remote
+- scheduled Windows sync loop to keep deploy artifacts updated
+- DB cloning to prevent ETL jobs from racing API reads
+- periodic SQLite backups and schema validation checks
 
 These choices make the system easier to scale in complexity without collapsing all logic into one script or one controller.
 
