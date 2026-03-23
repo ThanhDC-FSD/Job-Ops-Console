@@ -105,6 +105,11 @@ This note is intentionally written at a showcase level. It highlights the main s
 - Full source code, infrastructure details, and operational logic are not published in this repository.
 - Additional technical discussion or deeper code walkthroughs can be shared separately if needed.
 
+## Branch Safety
+
+- Local push guard: run `git config core.hooksPath .githooks` so the tracked [`.githooks/pre-push`](.githooks/pre-push) hook blocks any push to `development`.
+- Remote protection: follow [showcase_assets/architecture/github_branch_protection.md](showcase_assets/architecture/github_branch_protection.md) to create a GitHub branch ruleset that rejects creation or updates of `development`.
+
 ## Running & verifying the dev servers
 
 - **Start both backend + frontend**: execute `scripts\bat\run_job_ops_all.bat start all`. The script sequentially stops any leftovers, starts `run_job_ops_backend.bat` (uvicorn on 127.0.0.1:8102) and then `run_job_ops_frontend.bat` (npm dev server on 127.0.0.1:5182). If you only need one side, run the dedicated batch file instead (`run_job_ops_backend.bat` or `run_job_ops_frontend.bat`).

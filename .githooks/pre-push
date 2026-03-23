@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+
+remote_name="$1"
+remote_url="$2"
+
+block_branch_ref="refs/heads/development"
+
+while read local_ref local_sha remote_ref remote_sha
+do
+  if [ "$remote_ref" = "$block_branch_ref" ]; then
+    echo "ERROR: push blocked."
+    echo "The remote branch 'development' must never be published."
+    echo "Allowed public branch: 'showcase'"
+    echo "Remote: ${remote_name} (${remote_url})"
+    echo "Attempted ref: ${local_ref} -> ${remote_ref}"
+    echo ""
+    echo "If you meant to publish showcase content, use:"
+    echo "  git push ${remote_name} showcase"
+    exit 1
+  fi
+done
+
+exit 0

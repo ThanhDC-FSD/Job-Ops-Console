@@ -1,6 +1,8 @@
 *
 !README.md
 !.gitignore
+!.githooks/
+!.githooks/pre-push
 !showcase_assets/
 !showcase_assets/video/
 !showcase_assets/video/job_ops_project_showcase.mp4
@@ -13,3 +15,4 @@
 !showcase_assets/code/learning_quiz_excerpt.md
 !showcase_assets/architecture/
 !showcase_assets/architecture/basic_project_architecture.md
+!showcase_assets/architecture/github_branch_protection.md
