@@ -104,11 +104,7 @@ This note is intentionally written at a showcase level. It highlights the main s
 - This branch is intended for review and presentation only.
 - Full source code, infrastructure details, and operational logic are not published in this repository.
 - Additional technical discussion or deeper code walkthroughs can be shared separately if needed.
-
-## Branch Safety
-
-- Local push guard: run `git config core.hooksPath .githooks` so the tracked [`.githooks/pre-push`](.githooks/pre-push) hook blocks any push to `development`.
-- Remote protection: follow [showcase_assets/architecture/github_branch_protection.md](showcase_assets/architecture/github_branch_protection.md) to create a GitHub branch ruleset that rejects creation or updates of `development`.
+
 
 ## Running & verifying the dev servers
 
