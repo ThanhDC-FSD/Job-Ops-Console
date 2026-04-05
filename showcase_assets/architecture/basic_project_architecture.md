@@ -219,6 +219,21 @@ The project intentionally applies a few recognizable engineering patterns:
 
 These choices make the system easier to scale in complexity without collapsing all logic into one script or one controller.
 
+## Current System Snapshot (Ordinal Docs 01–10)
+
+The showcase now reflects the present implementation captured in `docs/current_system_workflow.mmd` (ordered 01→10):
+
+- **Ingestion & Normalization (01–02, 09):** LinkedIn/Seek/Apify crawlers → parse/normalize → SQLite (`job_posts`, `crawl_runs`) with feature extraction, chunking, and embeddings (`job_text_embeddings`).
+- **Learning ETL (02–03):** Seed `learning_plan.md`, crawl daily knowledge, chunk + hash embed into `learning_question_chunks`, mandatory enrichment (SLM-first, LLM fallback), publishable explanations only on gate pass.
+- **Automation & Scheduling (03, 10):** APScheduler + AutomationService trigger bat scripts (`run_linkedin_jobs_jd.bat`, `run_linkedin_jobs_applied_tracker.bat`, `run_learning_etl.py`, `render_cv_docx.bat`) with run/lock tracking.
+- **Fit Evaluation (06):** Heuristic fit scoring; borderline cases reranked via local LLM gateway; scores persisted to `job_fit_scores`.
+- **CV Rewrite (09–10):** Heuristic context selection (no semantic retrieval), prompt assembly, LLM rewrite, validation, render DOCX/PDF artifacts under `documents/` and `input/Raw_CV/`.
+- **Learning Quiz Runtime (03):** Quiz APIs read stored Q/A/explanations; no runtime LLM; retrieval not used at query time.
+- **Retrieval Footprint (04–05):** Embeddings stored (jobs, learning) but not invoked during inference outside enrichment; vector tables idle for runtime context—clear insertion points for future RAG.
+- **Observability (08):** `backend.log`, `backend.error.log`, `apps/backend/app/logs/etl_runs/*.log`, `automation_runs`, `llm_prompts` manifests provide run-level traces.
+
+This section is intentionally descriptive: it mirrors the current state (including gaps like unused retrieval during CV rewrite) while keeping the showcase concise and non-sensitive.
+
 ## Showcase Scope
 
 This architecture note is intentionally limited to a presentation-level overview.

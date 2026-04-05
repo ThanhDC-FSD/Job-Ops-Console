@@ -37,6 +37,38 @@ In addition to the application workflow itself, I also built a practical local d
 
 ![Jobs Workspace](showcase_assets/images/jobs_workspace.png)
 
+### Job Detail Modal
+
+![Job Detail Modal](showcase_assets/images/jobs_detail_modal.png)
+
+### Applied Jobs Workspace
+
+![Applied Jobs Workspace](showcase_assets/images/applied_jobs_workspace.png)
+
+### Applied Jobs Trend
+
+![Applied Jobs Trend](showcase_assets/images/applied_jobs_trend.png)
+
+### Reposts Analytics
+
+![Reposts Analytics](showcase_assets/images/analytics_reposts.png)
+
+### Learning Quiz
+
+![Learning Quiz](showcase_assets/images/learning_quiz.png)
+
+### Learning Knowledge
+
+![Learning Knowledge](showcase_assets/images/learning_knowledge.png)
+
+### Automation Schedules
+
+![Automation Schedules](showcase_assets/images/automation_schedules.png)
+
+### Automation Runs
+
+![Automation Runs](showcase_assets/images/automation_runs.png)
+
 ### Automation Console
 
 ![Automation Console](showcase_assets/images/automation_console.png)
@@ -49,6 +81,7 @@ These excerpts are intentionally partial and are provided only to show implement
 - [Backend API and filtering excerpt](showcase_assets/code/backend_api_excerpt.md)
 - [CV generation and artifact workflow excerpt](showcase_assets/code/cv_generation_excerpt.md)
 - [Frontend analytics and interaction excerpt](showcase_assets/code/frontend_analytics_excerpt.md)
+- [Learning quiz and knowledge workflow excerpt](showcase_assets/code/learning_quiz_excerpt.md)
 
 ## Architecture Overview
 
