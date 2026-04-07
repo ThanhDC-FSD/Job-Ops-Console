@@ -153,6 +153,15 @@ When staging or committing changes:
 * Prefer committing only source, docs, and intentional configuration changes
 * If an ignored file must be reviewed, inspect it explicitly before deciding whether it is safe
 
+## Database Snapshot Rule
+
+When a commit includes SQLite or DB-related changes:
+
+* Create a timestamped SQL snapshot named `db_snapshot_<timestamp>.sql` before committing
+* Keep the snapshot aligned with the committed code state
+* Do not use the snapshot as a replacement for schema or migration files
+* Do not snapshot raw CV or personal content unless it is explicitly required and already approved as safe
+
 ---
 
 ## Default Priority

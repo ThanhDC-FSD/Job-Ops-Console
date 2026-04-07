@@ -71,6 +71,7 @@ flowchart TD
     T44[Git hygiene excludes .env and CV/personal .docx .pdf .txt files from commits]
     T45[tmp_seek_automation is tracked as a code bundle while sqlite locks pauses input and benchmark results stay excluded]
     T46[Selected root tmp helpers are kept for file-size sqlite schema and row update checks while CV-path probes stay untracked]
+    T47[DB-related commits should create a timestamped db_snapshot_<timestamp>.sql for traceability]
     T37[Automation tab calls learningTopics first so it can pass the required topic_key to learningQuiz/learningKnowledge, keeping the knowledge and quiz cards in sync with the dedicated Learning tab]
     T39[Learning knowledge quiz and history are moved back to the dedicated Learning tab so Automation only keeps operations controls]
   end
@@ -138,6 +139,7 @@ flowchart TD
   T44 --> B2
   T45 --> B2
   T46 --> B2
+  T47 --> B2
   T32 --> B2
   T37 --> B2
 <!-- BEGIN PC_TUNING_RUN_RESULT -->
