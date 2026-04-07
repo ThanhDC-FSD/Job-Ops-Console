@@ -1,0 +1,70 @@
+flowchart TD
+  subgraph Crawl["Job Crawl + SQLite ETL"]
+    C1[Scrapers: LinkedIn / Seek / Apify] --> C2[Collect raw HTML/text]
+    C2 --> C3["Parse & normalize (scraper.py)"]
+    C3 --> C4["Persist job_posts + crawl_runs (SQLite)"]
+    C4 --> C5[Extract features, chunk text, tokenize]
+    C5 --> C6["Generate embeddings (text_vector_utils)"]
+    C6 --> C7["Store embeddings in job_text_embeddings + vector_index"]
+    C7 --> C8["Heuristic fit eval (evaluate_cv_fit.py)"]
+    C8 --> C9{Borderline?}
+    C9 -->|No| C10["Publish artifact set (Raw_CV folder)"]
+    C9 -->|Yes| C11["Enqueue rerank (local LLM gateway)"]
+    C11 --> C10
+  end
+
+  subgraph Vector["Vector Index + SQLite Feedback"]
+    C7 --> V1["vector_index table"]
+    C11 --> V1
+    V1 --> D1[Provides context for RAG retrieval]
+    D1 --> R5
+  end
+
+  subgraph RAG["RAG + Offline LLM"]
+    R1[User query / automation request] --> R2[Query processor]
+    R2 --> R3[Intent classifier & metrics]
+    R3 --> R4[Embedding generator]
+    R4 --> R5["Vector retrieval (top_k) from vector_index table"]
+    R5 --> R6["Score top_k + metrics (top1, avg_top_k)"]
+    R6 --> R7{Routing decision}
+    R7 -->|Use RAG| R8["RAG answer generator (grounded, uses top_k context)"]
+    R7 -->|Fallback to offline reasoning| R9["LLM reasoner (qwen2.5:1.5b via gateway_ollama_chat)"]
+    R8 --> R10[Return grounded answer to UI]
+    R10 --> M1[Log scores / latency]
+    R9 --> R11[Knowledge extractor]
+    R11 --> R12[Validator / verifier]
+    R12 -->|high_conf| R13["Persist feedback --> vector_index"]
+    R12 -->|low_conf| R14["Human review queue --> persisted knowledge"]
+    R13 --> V1
+    R14 --> V1
+  end
+
+  subgraph Rewrite["CV Rewrite + Fit Loop"]
+    W1[Inputs: master CV, JD file, rewrite guide] --> W2["Prompt assembly (compress if >threshold)"]
+    W2 --> W3["Submit to local/offline gateway (qwen2.5) --> structured JSON"]
+    W3 --> W4["Validator + heuristics (schema, gate checks)"]
+    W4 --> W5{Valid / Partial / Invalid}
+    W5 -->|Valid| W6["Parse output --> cv_text, cover letter, fit evidence"]
+    W5 -->|Partial| W7["Heuristic extraction + annotate gaps"]
+    W5 -->|Invalid| W8["Fallback deterministic rewrite + review"]
+    W6 --> W9["Render docs + TXT (Raw_CV folder)"]
+    W7 --> W9
+    W8 --> W9
+    W9 --> W10["Fit evaluation (report + gates)"]
+    W10 --> W11["Store artifacts + feed metadata"]
+    W10 --> V2[Persist fit scores for heuristics]
+    W11 --> C10
+  end
+
+  subgraph Observability["Observability & Tuning"]
+    M1[Logging: tokens/scores/latency] --> M2[Threshold tuning & alerts]
+    M2 --> B1["Benchmark runner (ETL + query)"]
+    B1 --> B2["Store JSON/SQLite results"]
+    B2 --> M2
+    W9 --> L1["Log prompts + outputs (tmp_seek_automation/logs)"]
+    W4 --> L2["Persist validation metadata (manifest.json)"]
+  end
+
+  %% Cross-domain links
+  V1 -.-> R8
+  Vector --> Observability

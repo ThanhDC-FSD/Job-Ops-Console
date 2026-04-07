@@ -1,0 +1,123 @@
+﻿flowchart TD
+  %% High-level system workflow (no learning queue)
+  subgraph UI["Frontend UI"]
+    UI_Dashboard[Dashboard]
+    UI_Jobs[Jobs + Applied Jobs]
+    UI_Learning[Learning Quiz + Knowledge]
+    UI_Automation[Automation Console]
+  end
+
+  subgraph API["Backend API - FastAPI"]
+    API_Jobs["/api/jobs, /api/jobs/:id, /api/jobs/:id/cv-preview"]
+    API_Learning["/api/learning/*"]
+    API_Actions["/api/actions/*"]
+    API_Schedules["/api/schedules, /api/runs"]
+  end
+
+  UI_Dashboard --> API_Schedules
+  UI_Jobs --> API_Jobs
+  UI_Learning --> API_Learning
+  UI_Automation --> API_Actions
+  UI_Automation --> API_Schedules
+
+  subgraph Scheduler["APScheduler Runtime"]
+    S_Sync[SchedulerRuntime.sync_jobs]
+    S_Idle["Idle DB sync job (15m)"]
+  end
+
+  subgraph Automation["AutomationService"]
+    A_RunPipeline["run_schedule_pipeline"]
+    A_RunAction["trigger_action -> execute_action_run"]
+    A_Overlap["Learning ETL overlap guard"]
+  end
+
+  API_Schedules --> S_Sync
+  S_Sync --> A_RunPipeline
+  S_Idle --> A_RunAction
+
+  A_RunPipeline -->|pipeline_type=filtered_jobs| CrawlFiltered
+  A_RunPipeline -->|pipeline_type=applied_jobs| CrawlApplied
+  A_RunPipeline -->|pipeline_type=learning_etl| LearningETLRun
+
+  A_RunAction --> CrawlFiltered
+  A_RunAction --> CrawlApplied
+  A_RunAction --> LearningETLRun
+  A_RunAction --> GenerateCV
+
+  LearningETLRun --> A_Overlap
+
+  subgraph Crawl["Crawl + ETL"]
+    CrawlFiltered[run_linkedin_jobs_jd.bat]
+    CrawlApplied[run_linkedin_jobs_applied_tracker.bat]
+    CrawlJD[linkedin_jobs_jd.py]
+    CrawlAppliedPy[linkedin_jobs_applied_tracker.py]
+    CrawlNormalize[Normalize + validate details]
+    CrawlEmbed[Chunk + embed JD]
+  end
+
+  CrawlFiltered --> CrawlJD
+  CrawlApplied --> CrawlAppliedPy
+  CrawlJD --> CrawlNormalize
+  CrawlAppliedPy --> CrawlNormalize
+  CrawlNormalize --> CrawlEmbed
+
+  subgraph LearningETL["Learning ETL"]
+    L_Seed[Seed import learning_plan.md]
+    L_Crawl[Crawl knowledge sources]
+    L_Parse[Extract Q/A + evidence]
+    L_Chunk[Chunk + embed]
+    L_Enrich[Explanation enrichment]
+    L_Publish[Publish or draft explanations]
+  end
+
+  LearningETLRun --> L_Seed --> L_Crawl --> L_Parse --> L_Chunk --> L_Enrich --> L_Publish
+
+  subgraph LLM["Local LLM Gateway"]
+    LLM_API[/v1/chat/completions/]
+    LLM_Ollama[Ollama upstream]
+  end
+
+  L_Enrich --> LLM_API --> LLM_Ollama
+
+  subgraph CV["CV Rewrite"]
+    CV_Request[Run CV rewrite]
+    CV_Prompt[Prompt assembly + context select]
+    CV_Gen[LLM rewrite + validate]
+    CV_Render[Render docx/pdf]
+  end
+
+  GenerateCV[render_cv_docx.bat] --> CV_Render
+  API_Actions --> CV_Request
+  CV_Request --> CV_Prompt --> LLM_API --> CV_Gen --> CV_Render
+
+  subgraph Storage["Storage - SQLite and Files"]
+    DB_Main[input/crawled_job/linkedin_jobs_jd.sqlite]
+    DB_API[apps/backend/app/job_ops_schema.sqlite]
+    DB_Learn[learning_* tables]
+    Files_Documents[documents/]
+    Files_RawCV[input/Raw_CV/]
+    Logs[apps/backend/app/logs/]
+  end
+
+  CrawlEmbed --> DB_Main
+  DB_Main -->|Idle sync| DB_API
+  L_Publish --> DB_Learn
+  CV_Render --> Files_Documents
+  CV_Gen --> Files_RawCV
+
+  API_Jobs --> DB_API
+  API_Learning --> DB_Learn
+
+  subgraph Observability["Observability"]
+    O_Runs[automation_runs]
+    O_Logs[backend.log, etl_runs/*.log]
+  end
+
+  A_RunAction --> O_Runs
+  A_RunPipeline --> O_Runs
+  O_Logs --> Logs
+
+  %% User-visible outputs
+  DB_API --> UI_Jobs
+  DB_Learn --> UI_Learning
+  Files_Documents --> UI_Jobs

@@ -1,0 +1,15 @@
+{
+    "searchTerms": [
+        "Junior Software Engineer",
+        "Software Engineer",
+        "Software Developer",
+        "Junior Software Developer",
+        "Entry Level Software Developer"
+    ],
+    "maxResults": 550,
+    "SortBy": "KeywordsRelevance",
+    "suburbOrCity": "Sydney",
+    "state": "NSW",
+    "dateRange": 31,
+    "requireEmail": false
+}

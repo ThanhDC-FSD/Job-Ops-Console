@@ -1,0 +1,57 @@
+%% ETL and CV Rewrite Flows (Mermaid)
+%% File: docs/etl_and_cv_rewrite_flow.mmd
+
+flowchart TD
+  subgraph ETL[ETL Pipeline]
+    A1[Source: Web Scrapers - LinkedIn, Seek, Apify] --> A2[Raw HTML and text collection]
+    A2 --> A3[Parse and normalize - scrapers/scraper.py]
+    A3 --> A4[Persist job_posts and crawl_runs - linkedin_jobs_jd.py]
+    A4 --> A5[Build canonical job details - job_detail_validations]
+    A5 --> A6[Feature extraction and tokenization]
+    A6 --> A7[Text chunking and embeddings - text_vector_utils]
+    A7 --> A8[Store embeddings - job_text_embeddings]
+    A5 --> A9[Run automated validations - job_detail_validator]
+    A9 --> A10[Compute fast heuristic fit - evaluate_cv_fit.py]
+    A10 --> A11{Heuristic decision}
+    A11 -->|Good or Bad| A12[Persist job_fit_scores]
+    A11 -->|Borderline| A13[Enqueue for LLM rerank - fit_evaluation_queue]
+    A13 --> A14[LLM Rerank - local gateway or upstream]
+    A14 --> A12
+    A12 --> A15[Generate artifact sets]
+    A15 --> A16[Save artifacts to Raw_CV folder]
+    A16 --> A17[Optional publish or backfill]
+  end
+
+  subgraph REWRITE[CV Rewrite Flow]
+    B1[Inputs: master CV, JD file, rewrite guide] --> B2[Assemble prompt payload]
+    B2 --> B2a{Prompt size > threshold?}
+    B2a -->|No| B3[Submit compact prompt to Local LLM gateway or upstream]
+    B2a -->|Yes| B2b[Compress context - extract top-K JD keywords and relevant CV snippets]
+    B2b --> B3
+    B3 --> B4[LLM response - structured JSON preferred]
+    B4 --> B5[Validator - schema check and heuristics]
+    B5 --> B6{Validation result}
+    B6 -->|Valid| B7[Parse response -> cv_text, cover_letter, fit_evidence, fit_evaluation]
+    B6 -->|Partial| B8[Heuristic extraction and annotate notes]
+    B6 -->|Invalid| B9[Deterministic fallback and mark for review]
+    B7 --> B10[Render outputs - text and documents]
+    B8 --> B10
+    B9 --> B10
+    B10 --> B11[Run fit evaluation to produce report and gates]
+    B11 --> B12[Store artifacts in Raw_CV folder]
+    B4 --> L1[Persist raw LLM output and redacted prompt to tmp_seek_automation/logs/llm_prompts]
+    B5 --> L2[Persist validation metadata to logs/manifest.json]
+  end
+
+  %% Cross-links
+  A16 -.-> B1
+  B12 -.-> A15
+
+  %% Logging & monitoring
+  subgraph LOGS [Observability]
+    L1 --> L3[metrics.csv / manifest.json]
+    L2 --> L3
+  end
+
+  style ETL fill:#f9f,stroke:#333,stroke-width:1px
+  style REWRITE fill:#9ff,stroke:#333,stroke-width:1px

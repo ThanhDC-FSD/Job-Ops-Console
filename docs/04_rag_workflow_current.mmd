@@ -1,0 +1,57 @@
+flowchart TD
+  subgraph Crawl["Current: Job Crawl + SQLite ETL"]
+    C1["run_linkedin_jobs_jd.bat"] --> C2["linkedin_jobs_jd.py"]
+    C2 --> C3["SQLite: crawl_runs + job_posts + job_observations"]
+    C3 --> C4["job_jd_contents + job_detail_validations"]
+    C4 --> C5["job_programming_languages + job_location_enrichment"]
+    C5 --> C6["split_text_chunks + build_hashed_embedding"]
+    C6 --> C7["job_text_embeddings"]
+    C7 --> C8["FitService.evaluate_jobs (optional)"]
+    C8 --> C9["job_fit_scores"]
+    C7 --> C10["render_cv_docx.py (optional)"]
+    C10 --> C11["job_generated_artifact_sets"]
+  end
+
+  subgraph Learning["Current: Learning ETL + Knowledge"]
+    L1["run_learning_etl.py"] --> L2["LearningService.run_learning_etl"]
+    L2 --> L3["import_learning_markdown"]
+    L3 --> L4["learning_sources + learning_topics"]
+    L4 --> L5["learning_questions + learning_answers"]
+    L2 --> L6["_collect_daily_crawl_candidates"]
+    L6 --> L7["_fetch_url_text"]
+    L7 --> L8["_extract_qa_from_text"]
+    L8 --> L9["_build_crawl_explanation_draft"]
+    L9 --> L10["_upsert_crawled_item"]
+    L10 --> L11["learning_question_chunks + embeddings"]
+    L11 --> L12["_enrich_explanations"]
+    L12 --> L13["ExplanationEnrichmentService.generate"]
+    L13 --> L14["local_llm_controller /v1/chat/completions"]
+    L13 --> L15["quality gates -> publish or draft"]
+  end
+
+  subgraph Rewrite["Current: CV Rewrite + Fit Loop"]
+    W1["UI -> GET /api/jobs/:id"] --> W2["JobService.job_detail"]
+    W2 --> W3["CvRewriteService.run_with_text"]
+    W3 --> W4["_select_relevant_jd_context"]
+    W4 --> W5["_select_relevant_cv_context"]
+    W5 --> W6["Prompt assembly -> JSON"]
+    W6 --> W7["local_llm_controller /v1/chat/completions"]
+    W7 --> W8["_parse_llm_json + validation"]
+    W8 --> W9["render_cv_docx.py"]
+    W9 --> W10["job_generated_artifact_sets + job_posts"]
+    W10 --> W11["evaluate_cv_fit.py (optional)"]
+    W11 --> W12["job_fit_scores"]
+  end
+
+  subgraph Retrieval["Current: Retrieval Substrate Only"]
+    C7 --> R1["job_text_embeddings"]
+    L11 --> R2["learning_question_chunks"]
+    R1 --> R3["No RAG query endpoint wired yet"]
+    R2 --> R3
+  end
+
+  subgraph Observability["Current: Logs and Run Tracking"]
+    C2 --> O1["automation_runs + etl_run logs"]
+    L14 --> O2["backend.log + explanation_enrichment.log"]
+    W7 --> O3["backend.log + llm usage logs"]
+  end

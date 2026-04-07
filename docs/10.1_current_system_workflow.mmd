@@ -1,0 +1,156 @@
+%% File: current_system_workflow.mmd
+%% Current-state workflow reflecting docs ordinal order (01→10)
+
+flowchart TD
+  %% [01] Workflow Matrix (overview of parallel pipelines)
+  subgraph O01["[01] Workflow Matrix"]
+    W1["Seed import & quiz<br/>(LearningService.import_learning_markdown)"]
+    W2["Crawl extractor (learning crawl candidates)"]
+    W3["Chunk + hashed embeddings<br/>(text_vector_utils.build_hashed_embedding)"]
+    W4["Hybrid enrichment queue<br/>(SLM-first, LLM fallback)"]
+    W5[CV rewrite + artifact generation]
+    W6["Local LLM gateway<br/>(/v1/chat/completions -> Ollama/Qwen)"]
+  end
+
+  %% [02] Crawl Knowledge Pipeline
+  subgraph O02["[02] Crawl Knowledge Pipeline"]
+    C2_1["Mark needs_enrichment<br/>(backfill removal)"]
+    C2_2["Collect URLs & fetch HTML<br/>(_collect_daily_crawl_candidates, _fetch_url_text)"]
+    C2_3["Parse Q/A + evidence draft<br/>(_extract_qa_from_text)"]
+    C2_4[Upsert learning_sources/questions/answers/chunks]
+    C2_5["Mandatory enrichment call<br/>(_enrich_explanations)"]
+    C2_6["Quality gate + retry/fallback<br/>(info_gain, overlap, length)"]
+  end
+
+  %% [03] Learning + Quiz Architecture
+  subgraph O03["[03] Learning + Quiz Architecture"]
+    Q3_1["Schedule/Queue<br/>(schedule_jobs, schedule_queue)"]
+    Q3_2[LearningService.run_learning_etl]
+    Q3_3[Chunking + embeddings -> learning_question_chunks]
+    Q3_4[Quiz APIs<br/>/learning/topics, /learning/quiz, /submit, /history]
+    Q3_5["Frontend quiz tab<br/>(shuffle, distractor cache)"]
+  end
+
+  %% [04] RAG Workflow References (current diagrams & current-state limits)
+  subgraph O04["[04] RAG Workflow (docs)"]
+    R4_1[Job crawl + embeddings -> job_text_embeddings]
+    R4_2[Vector index tables present]
+    R4_3["Planned RAG retrieval blocks\n(No online query wiring)"]
+    R4_4["Rewrite loop (prompt compress, validator)"]
+  end
+
+  %% [05] RAG Workflow v1 (doc, aspirational)
+  subgraph O05["[05] RAG Workflow v1 (doc)"]
+    R5_1["Vector retrieval + routing (planned)"]
+    R5_2["Grounded answer generator (planned)"]
+    R5_3[Offline LLM reasoner fallback]
+  end
+
+  %% [06] Fit evaluation LLM ETL tuning
+  subgraph O06["[06] Fit Evaluation / LLM ETL Tuning"]
+    F6_1["Heuristic fit eval<br/>(evaluate_cv_fit.py)"]
+    F6_2[Borderline -> fit_evaluation_queue]
+    F6_3["LLM rerank (local gateway)"]
+    F6_4[Persist job_fit_scores]
+  end
+
+  %% [07] LLM Enhancements Solution
+  subgraph O07["[07] LLM Enhancements"]
+    L7_1[Prompt/validation hardening]
+    L7_2["Fallback policies\n(SLM -> LLM -> deterministic)"]
+    L7_3["Auto-shutdown after ETL (Windows)"]
+  end
+
+  %% [08] Logging Standard
+  subgraph O08["[08] Logging Standard"]
+    Log8_1[backend.log, backend.error.log]
+    Log8_2[etl_runs/*.log, automation_runs]
+    Log8_3[llm_prompts manifests]
+  end
+
+  %% [09] ETL & CV Rewrite Flow (current)
+  subgraph O09["[09] ETL & CV Rewrite Flow"]
+    E9_1["Scrapers (LinkedIn/Seek/Apify) -> raw HTML/text"]
+    E9_2[Parse/normalize -> job_posts, crawl_runs]
+    E9_3[Feature extract, chunk, embed -> job_text_embeddings]
+    E9_4[Heuristic fit gate -> job_fit_scores]
+    E9_5["CV rewrite prompt assembly<br/>(retrieval flag + heuristic fallback)"]
+    E9_6[LLM rewrite + validate -> render_docx/pdf]
+    E9_7[Artifacts -> Raw_CV / documents]
+    E9_8[Nightly interview Q&A prediction -> JSON artifacts + metrics logs]
+  end
+
+  %% [10] System Workflow (end-to-end)
+  subgraph O10["[10] System Workflow"]
+    UI10["Frontend UI tabs<br/>(Dashboard/Jobs/Learning/Automation)"]
+    UI10a["Automation manual actions<br/>(Generate Interview Q&A accepts job_ids or JD paste/upload)"]
+    UI10b["Automation operations cards<br/>(Run Crawl Monitor, Create Schedule, Schedules, Runs)"]
+    UI10c["Learning tab<br/>(Knowledge, Quiz, History)"]
+    API10["FastAPI controllers<br/>(jobs, learning, actions, schedules)"]
+    S10["APScheduler + AutomationService<br/>(run_schedule_pipeline, trigger_action)"]
+    Crawl10[run_linkedin_jobs_jd.bat -> linkedin_jobs_jd.py]
+    Applied10[run_linkedin_jobs_applied_tracker.bat]
+    Learning10[run_learning_etl.py]
+    CV10[render_cv_docx.bat]
+    DB10[SQLite: job_ops_schema, linkedin_jobs_jd.sqlite, learning_*]
+    Files10[documents/, input/Raw_CV/]
+  end
+
+  %% Sequence links (must follow ordinal order)
+  O01 --> O02 --> O03 --> O04 --> O05 --> O06 --> O07 --> O08 --> O09 --> O10
+
+  %% Dataflow highlights (current state)
+  C2_4 --> Q3_3
+  Q3_3 --> Learning10
+  K118 --> F6_1
+  K117 -.-> R4_2
+  R4_2 -.-> E9_5
+  S38 --> CV10
+  CV10 --> Files10
+  API10 --> S10 --> Crawl10
+  API10 --> Learning10
+    UI10 --> UI10a --> API10
+    UI10 --> UI10b --> API10
+    UI10 --> UI10c --> API10
+  K119 --> E9_2
+  Applied10 --> E9_2
+  E9_2 --> E9_3 --> DB10
+  Learning10 --> C2_5
+  C2_5 --> DB10
+  DB10 --> API10
+  Files10 --> UI10
+  Log8_1 --> O10
+  O10 --> Log8_2
+
+  %% 2026-04-03 incremental additions (preserve old flow, add optional flags only)
+  E9_3a["Optional ETL skip-hash<br/>TUNING_SKIP_UNCHANGED_JOB_EMBEDDINGS=1"]
+  E9_3b["Persist content_hash state<br/>job_text_embedding_state"]
+  E9_5a["Optional retrieval path<br/>TUNING_ENABLE_RETRIEVAL_FOR_CV_REWRITE=1"]
+  E9_5b["Semantic + lexical rerank<br/>query-hash cache key"]
+  E9_5c["Fallback to heuristic legacy path<br/>if retrieval fails or returns empty"]
+  E9_5d["Offline context-pack build after ETL<br/>CvRewriteService.build_context_pack_for_job"]
+  E9_5e["Prompt budget + SQLite WAL cache<br/>tiktoken/HF + tuning_cache.sqlite"]
+  E9_8a["Prediction action<br/>scripts/python/predict_night.py"]
+  E9_8b["Scheduler pipeline_type=interview_prediction<br/>Qwen/Ollama local backend"]
+  E9_B["Repeatable benchmark harness<br/>scripts/python/run_now_etl_cv_flow.py"]
+
+  E9_3 --> E9_3a --> E9_3b --> DB10
+  E9_3 --> E9_5d --> E9_5
+  E9_5 --> E9_5a --> E9_5b --> E9_5c --> E9_5e --> E9_6
+  E9_7 --> E9_8 --> E9_8a --> E9_8b
+  E9_B -. benchmark .-> E9_3
+  E9_B -. benchmark .-> E9_5
+  E9_B -. benchmark .-> F6_1
+  E9_B -. benchmark .-> C2_5
+<!-- BEGIN PC_TUNING_RUN_RESULT -->
+Run timestamp: `2026-04-04 14:57:02`
+
+| Scenario | PatchTag | sample_n | avg_ms | p50_ms | p95_ms | max_ms | avg_prompt_tokens | avg_selected_ctx | fallback_rate |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| cv_rewrite_preview | baseline | 30 | 87.981 | 74.871 | 172.969 | 196.955 | 467.00 | 3.93 | 1.000 |
+| cv_rewrite_preview | patch_1_retrieval | 30 | 78.715 | 72.137 | 143.122 | 153.696 | 467.00 | 3.93 | 1.000 |
+| cv_rewrite_preview | patch_2_rerank_caps | 30 | 83.013 | 74.060 | 155.763 | 160.235 | 467.00 | 3.93 | 1.000 |
+| cv_rewrite_preview | patch_3_context_pack | 30 | 72.913 | 70.564 | 85.571 | 105.402 | 467.00 | 3.93 | 1.000 |
+| cv_rewrite_preview | patch_4_token_budget | 30 | 72.722 | 71.487 | 82.471 | 98.164 | 467.00 | 3.93 | 1.000 |
+
+<!-- END PC_TUNING_RUN_RESULT -->
