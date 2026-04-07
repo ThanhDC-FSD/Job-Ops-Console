@@ -558,7 +558,7 @@ def build_automation_router(
             run_at=payload.run_at,
             background_tasks=background_tasks,
             schedule_id=payload.schedule_id,
-            triggered_by="manual_api",
+            triggered_by=payload.triggered_by,
         )
 
     def _enqueue_action(

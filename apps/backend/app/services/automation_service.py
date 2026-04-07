@@ -781,6 +781,16 @@ class AutomationService:
             triggered_by,
             args,
         )
+        if action_type == "predict_interview_qa":
+            self.logger.info(
+                "Predict interview QA queued | run_id=%s triggered_by=%s args_count=%s has_cv_path=%s has_jd=%s scheduled=%s",
+                run_id,
+                triggered_by,
+                len(args),
+                any(str(arg).startswith("--cv-path") for arg in args),
+                any(str(arg).startswith("--jd-text-base64") for arg in args),
+                status == "pending",
+            )
         return {"run_id": run_id, "status": status, **detail}
 
     def schedule_action_run(
@@ -874,6 +884,14 @@ class AutomationService:
             triggered_by,
             args,
         )
+        if action_type == "predict_interview_qa":
+            self.logger.info(
+                "Predict interview QA start | run_id=%s triggered_by=%s args_count=%s log_path=%s",
+                run_id,
+                triggered_by,
+                len(args),
+                log_path,
+            )
         started = time.perf_counter()
         try:
             with log_path.open("a", encoding="utf-8", errors="ignore") as log_file:

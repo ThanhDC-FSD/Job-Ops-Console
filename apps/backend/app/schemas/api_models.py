@@ -47,6 +47,7 @@ class ActionTriggerPayload(BaseModel):
     args: list[str] = Field(default_factory=list)
     schedule_id: int | None = None
     run_at: str = Field(default="")
+    triggered_by: str = Field(default="manual_api")
 
 
 class ActionArgsPayload(BaseModel):

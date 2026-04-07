@@ -18,6 +18,7 @@ const APPLIED_JOBS_STATE_KEY = 'jobOps.ui.appliedJobs.state'
 const ANALYTICS_STATE_KEY = 'jobOps.ui.analytics.state'
 const AUTOMATION_STATE_KEY = 'jobOps.ui.automation.state'
 const applyCvLogger = createLogger('FE.ApplyCV')
+const learningQuizLogger = createLogger('FE.LearningQuiz')
 
 function pickLang(en, vi, lang = 'en') {
   if (lang === 'vi') {
@@ -99,6 +100,14 @@ function readFileTextInput(file) {
     reader.onerror = reject
     reader.readAsText(file, 'utf-8')
   })
+}
+
+function toIsoFromDateTimeLocal(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return ''
+  return parsed.toISOString()
 }
 
 const i18n = {
@@ -184,6 +193,7 @@ const i18n = {
     predictJdHint: 'Paste JD text or upload a JD file for ad-hoc predictions.',
     predictRecentDays: 'Recent days',
     predictMaxJobs: 'Max jobs',
+    predictStartAt: 'Start job time',
     predictForce: 'Force run even when feature flag is off',
     shutdownWhenCompleted: 'Shut down when completed',
     learningEtlPipeline: 'Learning ETL',
@@ -388,6 +398,7 @@ const i18n = {
     predictJdHint: 'Paste JD text or upload a JD file for ad-hoc predictions.',
     predictRecentDays: 'Recent days',
     predictMaxJobs: 'Max jobs',
+    predictStartAt: 'Start job time',
     predictForce: 'Force run even when feature flag is off',
     learningEtlPipeline: 'Learning ETL',
     shutdownWhenCompleted: 'Shut down when completed',
@@ -3327,6 +3338,7 @@ function InterviewQaPredictionTab({ t }) {
     cvPath: 'input/full_doc_stlye.txt',
     recentDays: '14',
     limit: '5',
+    startAt: '',
     jdText: '',
     jdFileName: '',
     force: false,
@@ -3383,12 +3395,40 @@ function InterviewQaPredictionTab({ t }) {
         args.push('--jd-text-base64', encoded)
       }
     }
+    const runAt = toIsoFromDateTimeLocal(predictionForm.startAt)
+    if (runAt) {
+      learningQuizLogger.info('Interview QA submit scheduled', {
+        source: 'learning_quiz',
+        run_at: runAt,
+        job_ids_count: parsedJobIds.length,
+        cv_path: cvPath || '',
+        recent_days: recentDays,
+        limit,
+        has_jd_text: Boolean(jdText),
+        has_file: Boolean(predictionForm.jdFileName),
+      })
+    } else {
+      learningQuizLogger.info('Interview QA submit immediate', {
+        source: 'learning_quiz',
+        job_ids_count: parsedJobIds.length,
+        cv_path: cvPath || '',
+        recent_days: recentDays,
+        limit,
+        has_jd_text: Boolean(jdText),
+        has_file: Boolean(predictionForm.jdFileName),
+      })
+    }
     setPredictionActionMessage('')
     setPredictionActionError('')
     setManualActionPending(true)
     try {
-      await api.triggerAction({ action_type: 'predict_interview_qa', args })
-      setPredictionActionMessage('Triggered predict_interview_qa')
+      await api.triggerAction({
+        action_type: 'predict_interview_qa',
+        args,
+        run_at: runAt,
+        triggered_by: 'learning_quiz',
+      })
+      setPredictionActionMessage(runAt ? `Scheduled predict_interview_qa for ${runAt}` : 'Triggered predict_interview_qa')
     } catch (error) {
       setPredictionActionError(String(error?.message || error))
     } finally {
@@ -3435,6 +3475,14 @@ function InterviewQaPredictionTab({ t }) {
             min="1"
             value={predictionForm.limit}
             onChange={(event) => setPredictionForm((prev) => ({ ...prev, limit: event.target.value }))}
+          />
+        </label>
+        <label className="action-input-label">
+          <span>{t.predictStartAt || 'Start job time'}</span>
+          <input
+            type="datetime-local"
+            value={predictionForm.startAt}
+            onChange={(event) => setPredictionForm((prev) => ({ ...prev, startAt: event.target.value }))}
           />
         </label>
       </div>

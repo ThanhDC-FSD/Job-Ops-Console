@@ -65,8 +65,9 @@ flowchart TD
     T29[Manual actions emit a confirmation message (e.g., “Triggered predict_interview_qa” or failure diagnostics) so operators see the request result]
     T27[CV artifact render falls back to a minimal docx writer when the Python render script can’t run]
     T26[Learning Quiz subpage Interview Q&A triggers predict_interview_qa]
-    T31[Interview Q&A subpage includes job_ids cv_path recent_days limit plus JD paste and file upload inputs that encode into --jd-text-base64]
+    T31[Interview Q&A subpage includes job_ids cv_path recent_days limit start job time plus JD paste and file upload inputs that encode into --jd-text-base64]
     T40[Learning Quiz now keeps Interview Q&A beside Knowledge as a dedicated subpage]
+    T50[Learning Quiz submissions can set run_at and triggered_by=learning_quiz while still landing in automation_runs for management]
     T41[Automation reload uses only real backend routes and no longer depends on missing client wrappers like automationQueue or scheduleLearningEtl]
     T42[Automation reload uses Promise.allSettled so a temporary GET failure or SQLite lock does not blank the whole tab]
     T43[Learning ETL scheduling in the UI maps to POST /api/schedules with pipeline_type=learning_etl]
@@ -144,6 +145,7 @@ flowchart TD
   T47 --> B2
   T48 --> B2
   T49 --> B2
+  T50 --> B2
   T32 --> B2
   T37 --> B2
 <!-- BEGIN PC_TUNING_RUN_RESULT -->
