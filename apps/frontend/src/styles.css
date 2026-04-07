@@ -505,6 +505,19 @@ th { background: #f4f7fa; }
   cursor: pointer;
 }
 
+.prediction-panel-header {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+
+.prediction-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
 .quiz-list,
 .quiz-results {
   display: grid;

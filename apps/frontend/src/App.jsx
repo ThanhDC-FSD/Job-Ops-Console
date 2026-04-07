@@ -78,6 +78,29 @@ function writeStoredState(key, value) {
   }
 }
 
+function encodeBase64Text(value) {
+  if (!value) return ''
+  if (typeof window === 'undefined' || typeof window.btoa !== 'function') return ''
+  try {
+    return window.btoa(unescape(encodeURIComponent(String(value || ''))))
+  } catch {
+    return ''
+  }
+}
+
+function readFileTextInput(file) {
+  if (!file) return Promise.resolve('')
+  if (typeof file.text === 'function') {
+    return file.text()
+  }
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result || ''))
+    reader.onerror = reject
+    reader.readAsText(file, 'utf-8')
+  })
+}
+
 const i18n = {
   en: {
     appTitle: 'Job Ops Console',
@@ -89,6 +112,7 @@ const i18n = {
     automation: 'Automation',
     learningQuiz: 'Learning Quiz',
     knowledgeTab: 'Knowledge',
+    interviewQaTab: 'Interview Q&A',
     knowledgeHint: 'Review the key theory and explanations before taking the quiz.',
     topic: 'Topic',
     startQuiz: 'Start Quiz',
@@ -287,6 +311,7 @@ const i18n = {
     automation: 'Váº­n hÃ nh',
     learningQuiz: 'Học & Quiz',
     knowledgeTab: 'Lý thuyết',
+    interviewQaTab: 'Interview Q&A',
     knowledgeHint: 'Xem nhanh phần lý thuyết và giải thích trước khi làm quiz.',
     topic: 'Chá»§ Ä‘á»',
     startQuiz: 'Báº¯t Ä‘áº§u quiz',
@@ -2765,7 +2790,6 @@ function AutomationTab({ t, lang, onDataChanged }) {
   const [schedulePageSize, setSchedulePageSize] = useState(() => Number(automationView?.schedulePageSize) || 50)
   const [runPageSize, setRunPageSize] = useState(() => Number(automationView?.runPageSize) || 50)
   const [manualActionPending, setManualActionPending] = useState(false)
-  const [showPredictionPanel, setShowPredictionPanel] = useState(false)
   const [scheduledPreview, setScheduledPreview] = useState({ schedule_jobs: [], automation_schedules: [] })
   const [form, setForm] = useState({
     name: 'New Schedule',
@@ -2781,17 +2805,6 @@ function AutomationTab({ t, lang, onDataChanged }) {
     run_now_on_create: true,
     fit_threshold: 75,
   })
-  const [predictionForm, setPredictionForm] = useState({
-    jobIds: '',
-    cvPath: 'input/full_doc_stlye.txt',
-    recentDays: '14',
-    limit: '5',
-    jdText: '',
-    jdFileName: '',
-    force: false,
-    shutdownWhenCompleted: false,
-  })
-  const [predictionFileError, setPredictionFileError] = useState('')
 
   async function reload() {
     const [schedulesRes, runsRes] = await Promise.allSettled([
@@ -2840,81 +2853,6 @@ function AutomationTab({ t, lang, onDataChanged }) {
     } finally {
       setManualActionPending(false)
     }
-  }
-
-  function encodeBase64(value) {
-    if (!value) return ''
-    if (typeof window === 'undefined' || typeof window.btoa !== 'function') return ''
-    try {
-      return window.btoa(unescape(encodeURIComponent(String(value || ''))))
-    } catch {
-      return ''
-    }
-  }
-
-  function readFileText(file) {
-    if (!file) return Promise.resolve('')
-    if (typeof file.text === 'function') {
-      return file.text()
-    }
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(String(reader.result || ''))
-      reader.onerror = reject
-      reader.readAsText(file, 'utf-8')
-    })
-  }
-
-  function handlePredictionFile(event) {
-    const file = event?.target?.files?.[0]
-    if (!file) {
-      setPredictionForm((prev) => ({ ...prev, jdFileName: '' }))
-      setPredictionFileError('')
-      return
-    }
-    setPredictionFileError('')
-    readFileText(file)
-      .then((text) => {
-        setPredictionForm((prev) => ({ ...prev, jdText: String(text || ''), jdFileName: file.name }))
-      })
-      .catch(() => {
-        setPredictionFileError('Failed to read file')
-      })
-  }
-
-  async function runPredictionManualAction() {
-    const args = ['--mode', 'nightly']
-    const parsedJobIds = String(predictionForm.jobIds || '')
-      .split(',')
-      .map((value) => value.trim())
-      .filter(Boolean)
-      .map((value) => Number(value))
-      .filter((value) => Number.isFinite(value) && value > 0)
-    parsedJobIds.forEach((jobId) => {
-      args.push('--job-id', String(jobId))
-    })
-    const cvPath = String(predictionForm.cvPath || '').trim()
-    if (cvPath) {
-      args.push('--cv-path', cvPath)
-    }
-    const recentDays = Math.max(0, Number(predictionForm.recentDays) || 0)
-    args.push('--recent-days', String(recentDays))
-    const limit = Math.max(1, Number(predictionForm.limit) || 1)
-    args.push('--limit', String(limit))
-    if (predictionForm.force) {
-      args.push('--force')
-    }
-    if (predictionForm.shutdownWhenCompleted) {
-      args.push('--shutdown-when-completed')
-    }
-    const jdText = String(predictionForm.jdText || '').trim()
-    if (jdText) {
-      const encoded = encodeBase64(jdText)
-      if (encoded) {
-        args.push('--jd-text-base64', encoded)
-      }
-    }
-    await startManualAction('predict_interview_qa', args)
   }
 
   async function startLearningEtlSchedule() {
@@ -3106,101 +3044,8 @@ function AutomationTab({ t, lang, onDataChanged }) {
           <button disabled={manualActionPending} onClick={async () => { await startManualAction('crawl_filtered', ['--window-days', '30']) }}>{t.runCrawlFiltered}</button>
           <button disabled={manualActionPending} onClick={async () => { await startManualAction('crawl_applied') }}>{t.runCrawlApplied}</button>
           <button disabled={manualActionPending} onClick={async () => { await startManualAction('generate_cv') }}>{t.runGenerateCv}</button>
-          <button
-            type="button"
-            disabled={manualActionPending}
-            onClick={() => setShowPredictionPanel((prev) => !prev)}
-            aria-expanded={showPredictionPanel}
-            aria-controls="prediction-panel"
-          >
-            {showPredictionPanel ? 'Hide Interview Q&A' : (t.runGenerateInterviewQa || 'Generate Interview Q&A')}
-          </button>
           <button disabled={manualActionPending} onClick={async () => { await startLearningEtlSchedule() }}>{t.scheduleLearningEtl}</button>
         </div>
-        {showPredictionPanel ? (
-          <div className="prediction-panel" id="prediction-panel">
-            <div className="prediction-panel-header">
-              <h4>{t.runGenerateInterviewQa || 'Generate Interview Q&A'}</h4>
-              {t.predictJdHint ? <p className="muted">{t.predictJdHint}</p> : null}
-            </div>
-            <div className="prediction-grid">
-              <label className="action-input-label">
-                <span>{t.predictJobIds || 'Job IDs'}</span>
-                <input
-                  placeholder={t.predictJobIdsPlaceholder || 'e.g. 4381111111,4382222222'}
-                  value={predictionForm.jobIds}
-                  onChange={(event) => setPredictionForm((prev) => ({ ...prev, jobIds: event.target.value }))}
-                />
-              </label>
-              <label className="action-input-label">
-                <span>{t.predictCvPath || 'CV path'}</span>
-                <input
-                  placeholder="input/full_doc_stlye.txt"
-                  value={predictionForm.cvPath}
-                  onChange={(event) => setPredictionForm((prev) => ({ ...prev, cvPath: event.target.value }))}
-                />
-              </label>
-              <label className="action-input-label">
-                <span>{t.predictRecentDays || 'Recent days'}</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={predictionForm.recentDays}
-                  onChange={(event) => setPredictionForm((prev) => ({ ...prev, recentDays: event.target.value }))}
-                />
-              </label>
-              <label className="action-input-label">
-                <span>{t.predictMaxJobs || 'Max jobs'}</span>
-                <input
-                  type="number"
-                  min="1"
-                  value={predictionForm.limit}
-                  onChange={(event) => setPredictionForm((prev) => ({ ...prev, limit: event.target.value }))}
-                />
-              </label>
-            </div>
-            <label className="action-input-label">
-              <span>{t.predictJdText || 'JD text'}</span>
-              <textarea
-                rows="3"
-                value={predictionForm.jdText}
-                onChange={(event) => setPredictionForm((prev) => ({ ...prev, jdText: event.target.value }))}
-                placeholder="Paste JD text to encode it for prediction"
-              />
-            </label>
-            <label className="action-input-label">
-              <span>{t.predictJdFile || 'JD file'}</span>
-              <input
-                type="file"
-                accept=".txt,.md,.json,.docx,.doc"
-                onChange={handlePredictionFile}
-              />
-              {predictionForm.jdFileName ? <div className="muted">Loaded: {predictionForm.jdFileName}</div> : null}
-              {predictionFileError ? <div className="error-text">{predictionFileError}</div> : null}
-            </label>
-            <div className="filters">
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={predictionForm.force}
-                  onChange={(event) => setPredictionForm((prev) => ({ ...prev, force: event.target.checked }))}
-                />
-                <span>{t.predictForce || 'Force run even when feature flag is off'}</span>
-              </label>
-              <label className="toggle-row">
-                <input
-                  type="checkbox"
-                  checked={predictionForm.shutdownWhenCompleted}
-                  onChange={(event) => setPredictionForm((prev) => ({ ...prev, shutdownWhenCompleted: event.target.checked }))}
-                />
-                <span>{t.shutdownWhenCompleted || 'Shut down when completed'}</span>
-              </label>
-              <button disabled={manualActionPending} onClick={runPredictionManualAction}>
-                {t.runGenerateInterviewQa || 'Generate Interview Q&A'}
-              </button>
-            </div>
-          </div>
-        ) : null}
         </div>
 
       <div className="card">
@@ -3357,6 +3202,172 @@ function AutomationTab({ t, lang, onDataChanged }) {
   )
 }
 
+function InterviewQaPredictionTab({ t }) {
+  const [manualActionPending, setManualActionPending] = useState(false)
+  const [predictionActionMessage, setPredictionActionMessage] = useState('')
+  const [predictionActionError, setPredictionActionError] = useState('')
+  const [predictionForm, setPredictionForm] = useState({
+    jobIds: '',
+    cvPath: 'input/full_doc_stlye.txt',
+    recentDays: '14',
+    limit: '5',
+    jdText: '',
+    jdFileName: '',
+    force: false,
+    shutdownWhenCompleted: false,
+  })
+  const [predictionFileError, setPredictionFileError] = useState('')
+
+  function handlePredictionFile(event) {
+    const file = event?.target?.files?.[0]
+    if (!file) {
+      setPredictionForm((prev) => ({ ...prev, jdFileName: '' }))
+      setPredictionFileError('')
+      return
+    }
+    setPredictionFileError('')
+    readFileTextInput(file)
+      .then((text) => {
+        setPredictionForm((prev) => ({ ...prev, jdText: String(text || ''), jdFileName: file.name }))
+      })
+      .catch(() => {
+        setPredictionFileError('Failed to read file')
+      })
+  }
+
+  async function runPredictionManualAction() {
+    const args = ['--mode', 'nightly']
+    const parsedJobIds = String(predictionForm.jobIds || '')
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean)
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0)
+    parsedJobIds.forEach((jobId) => {
+      args.push('--job-id', String(jobId))
+    })
+    const cvPath = String(predictionForm.cvPath || '').trim()
+    if (cvPath) {
+      args.push('--cv-path', cvPath)
+    }
+    const recentDays = Math.max(0, Number(predictionForm.recentDays) || 0)
+    args.push('--recent-days', String(recentDays))
+    const limit = Math.max(1, Number(predictionForm.limit) || 1)
+    args.push('--limit', String(limit))
+    if (predictionForm.force) {
+      args.push('--force')
+    }
+    if (predictionForm.shutdownWhenCompleted) {
+      args.push('--shutdown-when-completed')
+    }
+    const jdText = String(predictionForm.jdText || '').trim()
+    if (jdText) {
+      const encoded = encodeBase64Text(jdText)
+      if (encoded) {
+        args.push('--jd-text-base64', encoded)
+      }
+    }
+    setPredictionActionMessage('')
+    setPredictionActionError('')
+    setManualActionPending(true)
+    try {
+      await api.triggerAction({ action_type: 'predict_interview_qa', args })
+      setPredictionActionMessage('Triggered predict_interview_qa')
+    } catch (error) {
+      setPredictionActionError(String(error?.message || error))
+    } finally {
+      setManualActionPending(false)
+    }
+  }
+
+  return (
+    <div className="card">
+      <div className="prediction-panel-header">
+        <h3>{t.interviewQaTab || 'Interview Q&A'}</h3>
+        {t.predictJdHint ? <p className="muted">{t.predictJdHint}</p> : null}
+      </div>
+      <div className="prediction-grid">
+        <label className="action-input-label">
+          <span>{t.predictJobIds || 'Job IDs'}</span>
+          <input
+            placeholder={t.predictJobIdsPlaceholder || 'e.g. 4381111111,4382222222'}
+            value={predictionForm.jobIds}
+            onChange={(event) => setPredictionForm((prev) => ({ ...prev, jobIds: event.target.value }))}
+          />
+        </label>
+        <label className="action-input-label">
+          <span>{t.predictCvPath || 'CV path'}</span>
+          <input
+            placeholder="input/full_doc_stlye.txt"
+            value={predictionForm.cvPath}
+            onChange={(event) => setPredictionForm((prev) => ({ ...prev, cvPath: event.target.value }))}
+          />
+        </label>
+        <label className="action-input-label">
+          <span>{t.predictRecentDays || 'Recent days'}</span>
+          <input
+            type="number"
+            min="0"
+            value={predictionForm.recentDays}
+            onChange={(event) => setPredictionForm((prev) => ({ ...prev, recentDays: event.target.value }))}
+          />
+        </label>
+        <label className="action-input-label">
+          <span>{t.predictMaxJobs || 'Max jobs'}</span>
+          <input
+            type="number"
+            min="1"
+            value={predictionForm.limit}
+            onChange={(event) => setPredictionForm((prev) => ({ ...prev, limit: event.target.value }))}
+          />
+        </label>
+      </div>
+      <label className="action-input-label">
+        <span>{t.predictJdText || 'JD text'}</span>
+        <textarea
+          rows="3"
+          value={predictionForm.jdText}
+          onChange={(event) => setPredictionForm((prev) => ({ ...prev, jdText: event.target.value }))}
+          placeholder="Paste JD text to encode it for prediction"
+        />
+      </label>
+      <label className="action-input-label">
+        <span>{t.predictJdFile || 'JD file'}</span>
+        <input
+          type="file"
+          accept=".txt,.md,.json,.docx,.doc"
+          onChange={handlePredictionFile}
+        />
+        {predictionForm.jdFileName ? <div className="muted">Loaded: {predictionForm.jdFileName}</div> : null}
+        {predictionFileError ? <div className="error-text">{predictionFileError}</div> : null}
+      </label>
+      <div className="filters">
+        <label className="toggle-row">
+          <input
+            type="checkbox"
+            checked={predictionForm.force}
+            onChange={(event) => setPredictionForm((prev) => ({ ...prev, force: event.target.checked }))}
+          />
+          <span>{t.predictForce || 'Force run even when feature flag is off'}</span>
+        </label>
+        <label className="toggle-row">
+          <input
+            type="checkbox"
+            checked={predictionForm.shutdownWhenCompleted}
+            onChange={(event) => setPredictionForm((prev) => ({ ...prev, shutdownWhenCompleted: event.target.checked }))}
+          />
+          <span>{t.shutdownWhenCompleted || 'Shut down when completed'}</span>
+        </label>
+        <button disabled={manualActionPending} onClick={runPredictionManualAction}>
+          {t.runGenerateInterviewQa || 'Generate Interview Q&A'}
+        </button>
+      </div>
+      {predictionActionMessage ? <div className="muted">{predictionActionMessage}</div> : null}
+      {predictionActionError ? <div className="error-text">{predictionActionError}</div> : null}
+    </div>
+  )
+}
+
 function LearningQuizTab({ t, lang }) {
   const [topics, setTopics] = useState([])
   const [topicKey, setTopicKey] = useState('')
@@ -3488,6 +3499,9 @@ function LearningQuizTab({ t, lang }) {
             <button className={`subtab-btn ${subTab === 'knowledge' ? 'active' : ''}`} onClick={() => setSubTab('knowledge')}>
               {t.knowledgeTab || 'Knowledge'}
             </button>
+            <button className={`subtab-btn ${subTab === 'interview_qa' ? 'active' : ''}`} onClick={() => setSubTab('interview_qa')}>
+              {t.interviewQaTab || 'Interview Q&A'}
+            </button>
           </div>
           <div className="row-actions-right">
             <button className="primary-btn" onClick={startQuiz} disabled={loading || !topicKey}>{t.startQuiz}</button>
@@ -3524,6 +3538,8 @@ function LearningQuizTab({ t, lang }) {
             )
           )}
         </div>
+      ) : subTab === 'interview_qa' ? (
+        <InterviewQaPredictionTab t={t} />
       ) : (
         <div className="card">
           <h3>{t.learningQuiz}</h3>
