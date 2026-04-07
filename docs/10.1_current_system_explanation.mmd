@@ -58,6 +58,7 @@ flowchart TD
     T25[Company filter rewrites search keywords to reduce crawl scope before filtering]
     T48[Automation schedules table now includes Pause schedule Edit schedule and Delete actions in one row]
     T49[Create Schedule and Edit schedule both expose a Shutdown when completed checkbox]
+    T51[Runs table now exposes Pause and Delete actions for active and historical runs]
     T28[Jobs tab now resets to filtered stage by default and filtered API results hide applied plus non-actionable company_under_review/manual_only/closed jobs]
     T33[Applied Jobs API now infers applied state from apply evidence (apply date/source/events) instead of relying only on is_applied tracking flag]
     T32[Jobs page follows the release behavior again: jobs with CV show CV Apply and Mark Applied Manual, while jobs without CV show Generate CV]
@@ -145,6 +146,7 @@ flowchart TD
   T47 --> B2
   T48 --> B2
   T49 --> B2
+  T51 --> B2
   T50 --> B2
   T32 --> B2
   T37 --> B2

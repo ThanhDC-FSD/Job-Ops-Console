@@ -65,6 +65,7 @@ export const api = {
   runs: (limit = 50) => request(`/api/runs?limit=${limit}`),
   forceStopRun: (runId) => request(`/api/runs/${runId}/force-stop`, { method: 'POST' }),
   pauseRun: (runId) => request(`/api/runs/${runId}/pause`, { method: 'POST' }),
+  deleteRun: (runId) => request(`/api/runs/${runId}`, { method: 'DELETE' }),
   resumeRun: (runId) => request(`/api/runs/${runId}/resume`, { method: 'POST' }),
   learningTopics: () => request('/api/learning/topics'),
   learningQuiz: (params) => request(`/api/learning/quiz?${toQuery(params)}`),

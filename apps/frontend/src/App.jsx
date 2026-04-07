@@ -185,6 +185,7 @@ const i18n = {
     runCrawlApplied: 'Run Crawl Applied',
     runGenerateCv: 'Run Generate CV',
     runGenerateInterviewQa: 'Generate Interview Q&A',
+    pauseRun: 'Pause',
     predictJobIds: 'Job IDs',
     predictJobIdsPlaceholder: 'e.g. 4381111111,4382222222',
     predictCvPath: 'CV path',
@@ -390,6 +391,7 @@ const i18n = {
     runCrawlApplied: 'Run Crawl Applied',
     runGenerateCv: 'Run Generate CV',
     runGenerateInterviewQa: 'Generate Interview Q&A',
+    pauseRun: 'Pause',
     predictJobIds: 'Job IDs',
     predictJobIdsPlaceholder: 'e.g. 4381111111,4382222222',
     predictCvPath: 'CV path',
@@ -3147,6 +3149,17 @@ function AutomationTab({ t, lang, onDataChanged }) {
     await reloadAndNotify()
   }
 
+  async function pauseRun(run) {
+    await api.pauseRun(run.id)
+    await reloadAndNotify()
+  }
+
+  async function deleteRun(run) {
+    if (!window.confirm(`${t.delete || 'Delete'} run #${run.id}?`)) return
+    await api.deleteRun(run.id)
+    await reloadAndNotify()
+  }
+
   return (
     <div className="grid single">
       <div className="grid">
@@ -3310,7 +3323,7 @@ function AutomationTab({ t, lang, onDataChanged }) {
           <button disabled={runPg.page >= runPg.totalPages} onClick={() => setRunPage(runPg.page + 1)}>{t.next}</button>
         </div>
         <table>
-          <thead><tr><SortTh label="ID" col="id" sort={runSort} onSort={onRunSort} /><SortTh label="Action" col="action_type" sort={runSort} onSort={onRunSort} /><SortTh label={t.status} col="status" sort={runSort} onSort={onRunSort} /><SortTh label="By" col="triggered_by" sort={runSort} onSort={onRunSort} /><SortTh label={t.startedGmt7} col="started_at" sort={runSort} onSort={onRunSort} /><th>Progress</th></tr></thead>
+          <thead><tr><SortTh label="ID" col="id" sort={runSort} onSort={onRunSort} /><SortTh label="Action" col="action_type" sort={runSort} onSort={onRunSort} /><SortTh label={t.status} col="status" sort={runSort} onSort={onRunSort} /><SortTh label="By" col="triggered_by" sort={runSort} onSort={onRunSort} /><SortTh label={t.startedGmt7} col="started_at" sort={runSort} onSort={onRunSort} /><th>Progress</th><th>{t.actions}</th></tr></thead>
           <tbody>
             {runPg.items.map((r) => (
               <tr key={r.id}>
@@ -3320,6 +3333,20 @@ function AutomationTab({ t, lang, onDataChanged }) {
                 <td>{r.triggered_by}</td>
                 <td>{formatGmt7(r.started_at, lang)}</td>
                 <td title={String(runDetailPreview(r) || '')}>{runDetailPreview(r) || '-'}</td>
+                <td className="row-actions schedule-action-row">
+                  <button
+                    onClick={() => pauseRun(r)}
+                    disabled={!String(r.status || '').toLowerCase().includes('running')}
+                  >
+                    {t.pauseRun || 'Pause'}
+                  </button>
+                  <button
+                    onClick={() => deleteRun(r)}
+                    disabled={['running', 'pending'].includes(String(r.status || '').toLowerCase())}
+                  >
+                    {t.delete}
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>

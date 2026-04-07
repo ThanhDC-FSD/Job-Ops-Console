@@ -462,6 +462,16 @@ def build_automation_router(
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @router.delete("/runs/{run_id}")
+    def delete_run(run_id: int) -> dict:
+        try:
+            deleted = automation.delete_run(run_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Run not found")
+        return {"ok": True, "run_id": run_id, "deleted": True}
+
     @router.post("/runs/{run_id}/resume")
     def resume_run(run_id: int, background_tasks: BackgroundTasks) -> dict:
         try:

@@ -452,6 +452,17 @@ class AutomationService:
     def list_runs(self, limit: int) -> list[dict[str, Any]]:
         return self.repo.list_runs(limit)
 
+    def delete_run(self, run_id: int) -> bool:
+        row = self.repo.get_run(run_id)
+        if row is None:
+            raise ValueError(f"Run not found: {run_id}")
+        status = str(row.get("status") or "").strip().lower()
+        if status in {"running", "pending"}:
+            raise ValueError(f"Run is active and cannot be deleted: {run_id} status={status}")
+        deleted = self.repo.delete_run(run_id)
+        self.logger.info("Run deleted | id=%s status=%s deleted=%s", run_id, status, deleted)
+        return deleted
+
     def _build_action_command(self, action_type: str, args: list[str]) -> list[str]:
         if action_type == "crawl_filtered":
             return ["cmd", "/c", str(PROJECT_ROOT / "scripts" / "bat" / "run_linkedin_jobs_jd.bat"), *args]

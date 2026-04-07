@@ -352,6 +352,14 @@ class ScheduleRepository:
         item["detail_json"] = json.loads(item.get("detail_json") or "{}")
         return item
 
+    def delete_run(self, run_id: int) -> bool:
+        with self.db.connect() as conn:
+            cur = conn.execute(
+                "DELETE FROM automation_runs WHERE id = ? AND status NOT IN ('running', 'pending')",
+                (int(run_id),),
+            )
+            return cur.rowcount > 0
+
     def list_pending_scheduled_runs(self) -> list[dict[str, Any]]:
         with self.db.connect() as conn:
             rows = conn.execute(
