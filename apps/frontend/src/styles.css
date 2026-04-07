@@ -505,6 +505,20 @@ th { background: #f4f7fa; }
   cursor: pointer;
 }
 
+.schedule-action-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.schedule-action-row button {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+  cursor: pointer;
+}
+
 .prediction-panel-header {
   display: grid;
   gap: 4px;

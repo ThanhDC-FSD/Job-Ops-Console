@@ -40,7 +40,7 @@ flowchart TD
     T7[Offline context-pack build after ETL + online load when flag ON]
     T8[SQLite WAL persisted cache for context-pack and tuning artifacts]
     T9[Run-now benchmark loop with p95 regression gate + docs marker upsert]
-    T10[Automation schedule table unified: next-run + schedules in one operator view]
+    T10[Automation schedule table unified: next-run preview and schedules in one operator view]
     T11[Single-occurrence override uses date job + skip of original cron occurrence]
     T12[Automation tables use responsive wrappers and column width budgets for narrow monitors]
     T13[Schedule edit actions collapse into one Edit dropdown to reduce Actions column width]
@@ -56,6 +56,8 @@ flowchart TD
     T23[Runs table shows step counter for running runs based on phase]
     T24[Automation runs include Pause/Resume controls and paused status in UI]
     T25[Company filter rewrites search keywords to reduce crawl scope before filtering]
+    T48[Automation schedules table now includes Pause schedule Edit schedule and Delete actions in one row]
+    T49[Create Schedule and Edit schedule both expose a Shutdown when completed checkbox]
     T28[Jobs tab now resets to filtered stage by default and filtered API results hide applied plus non-actionable company_under_review/manual_only/closed jobs]
     T33[Applied Jobs API now infers applied state from apply evidence (apply date/source/events) instead of relying only on is_applied tracking flag]
     T32[Jobs page follows the release behavior again: jobs with CV show CV Apply and Mark Applied Manual, while jobs without CV show Generate CV]
@@ -140,6 +142,8 @@ flowchart TD
   T45 --> B2
   T46 --> B2
   T47 --> B2
+  T48 --> B2
+  T49 --> B2
   T32 --> B2
   T37 --> B2
 <!-- BEGIN PC_TUNING_RUN_RESULT -->

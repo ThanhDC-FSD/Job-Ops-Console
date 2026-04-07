@@ -189,6 +189,12 @@ const i18n = {
     learningEtlPipeline: 'Learning ETL',
     createSchedule: 'Create Schedule',
     create: 'Create',
+    schedules: 'Schedules',
+    editSchedule: 'Edit schedule',
+    saveChanges: 'Save Changes',
+    cancelEditSchedule: 'Cancel Edit',
+    pauseSchedule: 'Pause schedule',
+    resumeSchedule: 'Resume schedule',
     enabled: 'Enabled',
     cron: 'Cron',
     pipeline: 'Pipeline',
@@ -387,6 +393,12 @@ const i18n = {
     shutdownWhenCompleted: 'Shut down when completed',
     createSchedule: 'Táº¡o lá»‹ch',
     create: 'Táº¡o',
+    schedules: 'Schedules',
+    editSchedule: 'Edit schedule',
+    saveChanges: 'Save Changes',
+    cancelEditSchedule: 'Cancel Edit',
+    pauseSchedule: 'Pause schedule',
+    resumeSchedule: 'Resume schedule',
     enabled: 'Báº­t',
     cron: 'Cron',
     pipeline: 'Pipeline',
@@ -622,6 +634,36 @@ function buildCronExpr(ui) {
   const every = Math.min(24, Math.max(1, Number(ui.every_hours || 6)))
   if (every === 24) return '0 0 * * *'
   return `0 */${every} * * *`
+}
+
+function parseScheduleFormFromCron(cronExpr, fallback = {}) {
+  const cron = String(cronExpr || '').trim()
+  const dailyMatch = /^(\d{1,2}) (\d{1,2}) \* \* \*$/.exec(cron)
+  const everyHoursMatch = /^0 \*\/(\d{1,2}) \* \* \*$/.exec(cron)
+  const weeklyMatch = /^(\d{1,2}) (\d{1,2}) \* \* ([\d,]+)$/.exec(cron)
+  if (everyHoursMatch) {
+    return {
+      ...fallback,
+      frequency: 'every_hours',
+      every_hours: String(Math.min(24, Math.max(1, Number(everyHoursMatch[1]) || 6))),
+    }
+  }
+  if (weeklyMatch) {
+    return {
+      ...fallback,
+      frequency: 'weekly',
+      run_time: `${String(weeklyMatch[2]).padStart(2, '0')}:${String(weeklyMatch[1]).padStart(2, '0')}`,
+      weekdays: weeklyMatch[3].split(',').map((day) => Number(day)).filter((day) => Number.isFinite(day)).sort((a, b) => a - b),
+    }
+  }
+  if (dailyMatch) {
+    return {
+      ...fallback,
+      frequency: 'daily',
+      run_time: `${String(dailyMatch[2]).padStart(2, '0')}:${String(dailyMatch[1]).padStart(2, '0')}`,
+    }
+  }
+  return fallback
 }
 
 function normalizeSortValue(value) {
@@ -2790,7 +2832,7 @@ function AutomationTab({ t, lang, onDataChanged }) {
   const [schedulePageSize, setSchedulePageSize] = useState(() => Number(automationView?.schedulePageSize) || 50)
   const [runPageSize, setRunPageSize] = useState(() => Number(automationView?.runPageSize) || 50)
   const [manualActionPending, setManualActionPending] = useState(false)
-  const [scheduledPreview, setScheduledPreview] = useState({ schedule_jobs: [], automation_schedules: [] })
+  const [editingScheduleId, setEditingScheduleId] = useState(null)
   const [form, setForm] = useState({
     name: 'New Schedule',
     pipeline_type: 'filtered_jobs',
@@ -2804,6 +2846,7 @@ function AutomationTab({ t, lang, onDataChanged }) {
     auto_generate_cv: false,
     run_now_on_create: true,
     fit_threshold: 75,
+    shutdown_when_completed: false,
   })
 
   async function reload() {
@@ -2815,7 +2858,6 @@ function AutomationTab({ t, lang, onDataChanged }) {
     const runItems = runsRes.status === 'fulfilled' ? (runsRes.value.items || []) : []
     setSchedules(autoSchedules)
     setRuns(runItems)
-    setScheduledPreview({ schedule_jobs: [], automation_schedules: autoSchedules })
     setMergedSchedules(
       autoSchedules.map((item) => ({
         ...item,
@@ -2928,6 +2970,108 @@ function AutomationTab({ t, lang, onDataChanged }) {
     })
   }, [schedulePage, runPage, schedulePageSize, runPageSize])
 
+  function scheduleToForm(schedule) {
+    const crawlConfig = schedule?.crawl_config_json || {}
+    const baseForm = {
+      name: String(schedule?.name || 'New Schedule'),
+      pipeline_type: String(schedule?.pipeline_type || 'filtered_jobs'),
+      frequency: 'every_hours',
+      every_hours: 6,
+      run_time: '09:00',
+      weekdays: [1, 3, 5],
+      window_days: Number(crawlConfig.window_days) || 30,
+      max_jobs: Number(crawlConfig.max_jobs) || 200,
+      auto_eval_fit: Boolean(schedule?.auto_eval_fit ?? true),
+      auto_generate_cv: Boolean(schedule?.auto_generate_cv ?? false),
+      run_now_on_create: true,
+      fit_threshold: Number(schedule?.fit_threshold) || 75,
+      shutdown_when_completed: Boolean(crawlConfig.shutdown_when_completed ?? false),
+    }
+    return parseScheduleFormFromCron(schedule?.cron_expr, baseForm)
+  }
+
+  function buildSchedulePayloadFromForm(overrides = {}, schedule = null) {
+    const sourceForm = form
+    const crawlConfig = schedule?.crawl_config_json || {}
+    const payload = {
+      name: String(overrides.name ?? sourceForm.name ?? 'New Schedule').trim() || 'New Schedule',
+      enabled: typeof overrides.enabled === 'boolean' ? overrides.enabled : Boolean(schedule?.enabled ?? true),
+      cron_expr: overrides.cron_expr || cronExpr,
+      timezone: overrides.timezone || schedule?.timezone || TIMEZONE,
+      pipeline_type: overrides.pipeline_type || sourceForm.pipeline_type,
+      auto_eval_fit: Boolean(overrides.auto_eval_fit ?? sourceForm.auto_eval_fit),
+      fit_cv_profile: String(overrides.fit_cv_profile || schedule?.fit_cv_profile || 'full_doc_stlye'),
+      auto_generate_cv: Boolean(overrides.auto_generate_cv ?? sourceForm.auto_generate_cv),
+      fit_threshold: Number(overrides.fit_threshold ?? sourceForm.fit_threshold) || 75,
+      crawl_config: {
+        ...crawlConfig,
+      },
+    }
+    if (payload.pipeline_type === 'learning_etl') {
+      payload.crawl_config = {
+        ...payload.crawl_config,
+        topic_keys: Array.isArray(crawlConfig.topic_keys) ? crawlConfig.topic_keys : [],
+        daily_target_per_topic: Number(crawlConfig.daily_target_per_topic) || 20,
+        seed_path: String(crawlConfig.seed_path || 'learning_plan.md'),
+        enqueue_now: Boolean(sourceForm.run_now_on_create),
+        max_attempts: Number(crawlConfig.max_attempts) || 3,
+        crawl_enabled: true,
+        crawl_per_topic_limit: Number(crawlConfig.crawl_per_topic_limit) || 10,
+        crawl_sources: Array.isArray(crawlConfig.crawl_sources) ? crawlConfig.crawl_sources : [],
+        shutdown_when_completed: Boolean(overrides.shutdown_when_completed ?? sourceForm.shutdown_when_completed),
+      }
+    } else {
+      payload.crawl_config = {
+        ...payload.crawl_config,
+        window_days: Number(overrides.window_days ?? sourceForm.window_days) || 30,
+        max_jobs: Number(overrides.max_jobs ?? sourceForm.max_jobs) || 200,
+        shutdown_when_completed: Boolean(overrides.shutdown_when_completed ?? sourceForm.shutdown_when_completed),
+      }
+    }
+    return payload
+  }
+
+  function buildSchedulePayloadFromSchedule(schedule, overrides = {}) {
+    const sourceForm = scheduleToForm(schedule)
+    const crawlConfig = schedule?.crawl_config_json || {}
+    const payload = {
+      name: String(overrides.name ?? schedule?.name ?? 'New Schedule').trim() || 'New Schedule',
+      enabled: typeof overrides.enabled === 'boolean' ? overrides.enabled : Boolean(schedule?.enabled ?? true),
+      cron_expr: overrides.cron_expr || schedule?.cron_expr || buildCronExpr(sourceForm),
+      timezone: overrides.timezone || schedule?.timezone || TIMEZONE,
+      pipeline_type: overrides.pipeline_type || String(schedule?.pipeline_type || sourceForm.pipeline_type),
+      auto_eval_fit: Boolean(overrides.auto_eval_fit ?? schedule?.auto_eval_fit ?? true),
+      fit_cv_profile: String(overrides.fit_cv_profile || schedule?.fit_cv_profile || 'full_doc_stlye'),
+      auto_generate_cv: Boolean(overrides.auto_generate_cv ?? schedule?.auto_generate_cv ?? false),
+      fit_threshold: Number(overrides.fit_threshold ?? schedule?.fit_threshold) || 75,
+      crawl_config: {
+        ...crawlConfig,
+      },
+    }
+    if (payload.pipeline_type === 'learning_etl') {
+      payload.crawl_config = {
+        ...payload.crawl_config,
+        topic_keys: Array.isArray(crawlConfig.topic_keys) ? crawlConfig.topic_keys : [],
+        daily_target_per_topic: Number(crawlConfig.daily_target_per_topic) || 20,
+        seed_path: String(crawlConfig.seed_path || 'learning_plan.md'),
+        enqueue_now: Boolean(sourceForm.run_now_on_create),
+        max_attempts: Number(crawlConfig.max_attempts) || 3,
+        crawl_enabled: true,
+        crawl_per_topic_limit: Number(crawlConfig.crawl_per_topic_limit) || 10,
+        crawl_sources: Array.isArray(crawlConfig.crawl_sources) ? crawlConfig.crawl_sources : [],
+        shutdown_when_completed: Boolean(overrides.shutdown_when_completed ?? sourceForm.shutdown_when_completed),
+      }
+    } else {
+      payload.crawl_config = {
+        ...payload.crawl_config,
+        window_days: Number(overrides.window_days ?? sourceForm.window_days) || 30,
+        max_jobs: Number(overrides.max_jobs ?? sourceForm.max_jobs) || 200,
+        shutdown_when_completed: Boolean(overrides.shutdown_when_completed ?? sourceForm.shutdown_when_completed),
+      }
+    }
+    return payload
+  }
+
   function toggleWeekday(dayValue) {
     const current = new Set(form.weekdays)
     if (current.has(dayValue)) current.delete(dayValue)
@@ -2935,56 +3079,60 @@ function AutomationTab({ t, lang, onDataChanged }) {
     setForm({ ...form, weekdays: Array.from(current).sort((a, b) => a - b) })
   }
 
-  async function createSchedule() {
-    if (form.pipeline_type === 'learning_etl') {
-      await api.createSchedule({
-        name: form.name,
-        cron_expr: cronExpr,
-        timezone: TIMEZONE,
-        enabled: true,
-        pipeline_type: 'learning_etl',
-        crawl_config: {
-          topic_keys: [],
-          daily_target_per_topic: 20,
-          seed_path: 'learning_plan.md',
-          enqueue_now: Boolean(form.run_now_on_create),
-          max_attempts: 3,
-          crawl_enabled: true,
-          crawl_per_topic_limit: 10,
-          crawl_sources: [],
-        },
-        auto_eval_fit: true,
-        auto_generate_cv: false,
-        fit_threshold: Number(form.fit_threshold) || 75,
-      })
+  function startEditSchedule(schedule) {
+    setEditingScheduleId(schedule?.id || null)
+    setForm(scheduleToForm(schedule))
+  }
+
+  function cancelEditSchedule() {
+    setEditingScheduleId(null)
+    setForm({
+      name: 'New Schedule',
+      pipeline_type: 'filtered_jobs',
+      frequency: 'every_hours',
+      every_hours: 6,
+      run_time: '09:00',
+      weekdays: [1, 3, 5],
+      window_days: 30,
+      max_jobs: 200,
+      auto_eval_fit: true,
+      auto_generate_cv: false,
+      run_now_on_create: true,
+      fit_threshold: 75,
+      shutdown_when_completed: false,
+    })
+  }
+
+  async function saveSchedule() {
+    const payload = buildSchedulePayloadFromForm()
+    if (editingScheduleId) {
+      await api.updateSchedule(editingScheduleId, payload)
       await reloadAndNotify()
+      cancelEditSchedule()
       return
     }
-    const payload = {
-      name: form.name,
+    const created = await api.createSchedule({
+      ...payload,
       enabled: true,
-      cron_expr: cronExpr,
-      timezone: TIMEZONE,
-      pipeline_type: form.pipeline_type,
-      crawl_config: {
-        window_days: Number(form.window_days) || 30,
-        max_jobs: Number(form.max_jobs) || 200,
-      },
-      auto_eval_fit: Boolean(form.auto_eval_fit),
-      fit_cv_profile: 'full_doc_stlye',
-      auto_generate_cv: Boolean(form.auto_generate_cv),
-      fit_threshold: Number(form.fit_threshold) || 75,
-    }
-    const created = await api.createSchedule(payload)
+    })
     if (form.run_now_on_create && created?.id) {
       await api.runScheduleNow(created.id)
     }
     await reloadAndNotify()
   }
 
+  async function toggleScheduleEnabled(schedule) {
+    const nextEnabled = !Boolean(schedule?.enabled)
+    await api.updateSchedule(schedule.id, buildSchedulePayloadFromSchedule(schedule, { enabled: nextEnabled }))
+    await reloadAndNotify()
+  }
+
   async function deleteSchedule(schedule) {
     if (!window.confirm(t.confirmDeleteSchedule)) return
     await api.deleteSchedule(schedule.id)
+    if (editingScheduleId === schedule.id) {
+      cancelEditSchedule()
+    }
     await reloadAndNotify()
   }
 
@@ -2997,48 +3145,7 @@ function AutomationTab({ t, lang, onDataChanged }) {
         <Card title={t.lastRunGmt7} value={formatGmt7(summary.lastRunAt, lang)} />
       </div>
 
-      {/* Queue hidden on request */}
-
       <div className="card">
-        <h3>{t.nextRun}</h3>
-        <table>
-          <thead>
-            <tr><th>Type</th><th>Name</th><th>Cron</th><th>{t.nextRun}</th><th>Timezone</th></tr>
-          </thead>
-          <tbody>
-            {[
-              ...(scheduledPreview.schedule_jobs || []).map((s) => ({
-                key: `job_${s.id}`,
-                type: s.job_type,
-                name: s.name,
-                cron: s.cron_expr || '',
-                next: s.next_run_at || '',
-                tz: s.timezone || '',
-              })),
-              ...(scheduledPreview.automation_schedules || []).map((s) => ({
-                key: `auto_${s.id}`,
-                type: s.pipeline_type,
-                name: s.name,
-                cron: s.cron_expr || '',
-                next: s.next_run_at || '',
-                tz: s.timezone || '',
-              })),
-            ]
-              .sort((a, b) => String(a.next || '').localeCompare(String(b.next || '')))
-              .map((row) => (
-                <tr key={row.key}>
-                  <td>{row.type}</td>
-                  <td>{row.name}</td>
-                  <td>{row.cron}</td>
-                  <td>{formatGmt7(row.next, lang) || '-'}</td>
-                  <td>{row.tz || 'UTC'}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-
-        <div className="card">
         <h3>{t.manualActions}</h3>
         <div className="filters">
           <button disabled={manualActionPending} onClick={async () => { await startManualAction('crawl_filtered', ['--window-days', '30']) }}>{t.runCrawlFiltered}</button>
@@ -3083,7 +3190,7 @@ function AutomationTab({ t, lang, onDataChanged }) {
       </div>
 
       <div className="card">
-        <h3>{t.createSchedule}</h3>
+        <h3>{editingScheduleId ? `${t.editSchedule || 'Edit schedule'} #${editingScheduleId}` : t.createSchedule}</h3>
         <div className="schedule-grid">
           <label>{t.scheduleName}<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <label>{t.scheduleType}
@@ -3128,15 +3235,19 @@ function AutomationTab({ t, lang, onDataChanged }) {
 
           <label className="toggle-row"><input type="checkbox" checked={form.auto_eval_fit} onChange={(e) => setForm({ ...form, auto_eval_fit: e.target.checked })} />{t.autoEvaluateFit}</label>
           <label className="toggle-row"><input type="checkbox" checked={form.auto_generate_cv} onChange={(e) => setForm({ ...form, auto_generate_cv: e.target.checked })} />{t.autoGenerateCv}</label>
-          <label className="toggle-row"><input type="checkbox" checked={form.run_now_on_create} onChange={(e) => setForm({ ...form, run_now_on_create: e.target.checked })} />{t.runNowOnCreate || 'Run crawl right after create'}</label>
+          <label className="toggle-row"><input type="checkbox" checked={form.shutdown_when_completed} onChange={(e) => setForm({ ...form, shutdown_when_completed: e.target.checked })} />{t.shutdownWhenCompleted}</label>
+          {!editingScheduleId ? <label className="toggle-row"><input type="checkbox" checked={form.run_now_on_create} onChange={(e) => setForm({ ...form, run_now_on_create: e.target.checked })} />{t.runNowOnCreate || 'Run crawl right after create'}</label> : null}
         </div>
 
         <div className="cron-preview"><b>{t.cronPreview}:</b> <code>{cronExpr}</code></div>
-        <div className="filters"><button onClick={createSchedule}>{t.create}</button></div>
+        <div className="filters">
+          <button onClick={saveSchedule}>{editingScheduleId ? (t.saveChanges || 'Save Changes') : t.create}</button>
+          {editingScheduleId ? <button onClick={cancelEditSchedule}>{t.cancelEditSchedule || 'Cancel Edit'}</button> : null}
+        </div>
       </div>
 
       <div className="card">
-        <h3>Schedules</h3>
+        <h3>{t.schedules || 'Schedules'}</h3>
         <div className="pager">
           <span>{t.showing} {schedulePg.start}-{schedulePg.end} {t.of} {schedulePg.total} {t.records}</span>
           <span>{t.pageSize}</span>
@@ -3150,18 +3261,23 @@ function AutomationTab({ t, lang, onDataChanged }) {
           <button disabled={schedulePg.page >= schedulePg.totalPages} onClick={() => setSchedulePage(schedulePg.page + 1)}>{t.next}</button>
         </div>
         <table>
-          <thead><tr><SortTh label="ID" col="id" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label="Name" col="name" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.enabled} col="enabled" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.cron} col="cron_expr" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.nextRun} col="next_run_at" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.pipeline} col="pipeline_type" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.threshold} col="fit_threshold" sort={scheduleSort} onSort={onScheduleSort} /><th>{t.actions}</th></tr></thead>
+          <thead><tr><SortTh label="ID" col="id" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.pipeline} col="pipeline_type" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label="Name" col="name" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.enabled} col="enabled" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.shutdownWhenCompleted} col="shutdown_when_completed" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.cron} col="cron_expr" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.nextRun} col="next_run_at" sort={scheduleSort} onSort={onScheduleSort} /><SortTh label={t.threshold} col="fit_threshold" sort={scheduleSort} onSort={onScheduleSort} /><th>{t.actions}</th></tr></thead>
           <tbody>
             {schedulePg.items.map((s) => (
               <tr key={`${s.source}_${s.id}`}>
                 <td>{s.id}</td>
+                <td>{s.pipeline_type}</td>
                 <td>{s.name}</td>
                 <td>{s.enabled ? t.yes : t.no}</td>
+                <td>{s.crawl_config_json?.shutdown_when_completed ? t.yes : t.no}</td>
                 <td>{s.cron_expr}</td>
                 <td>{formatGmt7(s.next_run_at || '', lang)}</td>
-                <td>{s.pipeline_type}</td>
                 <td>{s.fit_threshold || '-'}</td>
-                <td><button onClick={() => deleteSchedule(s)}>{t.delete}</button></td>
+                <td className="row-actions schedule-action-row">
+                  <button onClick={() => toggleScheduleEnabled(s)}>{s.enabled ? (t.pauseSchedule || 'Pause schedule') : (t.resumeSchedule || 'Resume schedule')}</button>
+                  <button onClick={() => startEditSchedule(s)}>{t.editSchedule || 'Edit schedule'}</button>
+                  <button onClick={() => deleteSchedule(s)}>{t.delete}</button>
+                </td>
               </tr>
             ))}
           </tbody>
