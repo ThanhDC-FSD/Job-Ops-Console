@@ -342,6 +342,76 @@ class AutomationService:
             "resume_from_run_id": run_id,
         }
 
+    def _get_pending_scheduled_run(self, run_id: int) -> dict[str, Any]:
+        row = self.repo.get_run(run_id)
+        if row is None:
+            raise ValueError(f"Run not found: {run_id}")
+        status = str(row.get("status") or "").strip().lower()
+        if status != "pending":
+            raise ValueError(f"Run not pending: {run_id} status={status}")
+        detail = dict(row.get("detail_json") or {})
+        scheduled_for = str(detail.get("scheduled_for") or "").strip()
+        if not scheduled_for:
+            raise ValueError(f"Run is not a scheduled pending run: {run_id}")
+        row["detail_json"] = detail
+        row["scheduled_for"] = scheduled_for
+        return row
+
+    def recall_pending_run(self, run_id: int) -> dict[str, Any]:
+        row = self._get_pending_scheduled_run(run_id)
+        detail = dict(row.get("detail_json") or {})
+        now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        detail["recall_requested_at"] = now_iso
+        detail["progress_message"] = "Recall requested"
+        self._update_run_with_retry(
+            run_id,
+            status="pending",
+            detail=detail,
+            attempts=6,
+            base_delay_seconds=0.4,
+            context="recall_pending_run",
+        )
+        self.logger.info("Pending run recall requested | run_id=%s scheduled_for=%s", run_id, row.get("scheduled_for"))
+        return {
+            "ok": True,
+            "run_id": run_id,
+            "status": "pending",
+            "action_type": row.get("action_type"),
+            "scheduled_for": row.get("scheduled_for"),
+            "recall_requested_at": now_iso,
+        }
+
+    def reschedule_pending_run(self, run_id: int, run_at: str) -> dict[str, Any]:
+        row = self._get_pending_scheduled_run(run_id)
+        normalized_run_at = self._normalize_occurrence_at(run_at)
+        if not normalized_run_at:
+            raise ValueError("Invalid run_at")
+        detail = dict(row.get("detail_json") or {})
+        detail["scheduled_for"] = normalized_run_at
+        detail["rescheduled_at"] = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+        detail["progress_message"] = "Rescheduled"
+        self._update_run_with_retry(
+            run_id,
+            status="pending",
+            detail=detail,
+            attempts=6,
+            base_delay_seconds=0.4,
+            context="reschedule_pending_run",
+        )
+        self.logger.info(
+            "Pending run rescheduled | run_id=%s old_scheduled_for=%s new_scheduled_for=%s",
+            run_id,
+            row.get("scheduled_for"),
+            normalized_run_at,
+        )
+        return {
+            "ok": True,
+            "run_id": run_id,
+            "status": "pending",
+            "action_type": row.get("action_type"),
+            "scheduled_for": normalized_run_at,
+        }
+
     @staticmethod
     def _is_uploadable_cv_path(path_value: str) -> bool:
         return Path(str(path_value or "").strip()).suffix.lower() in {".pdf", ".docx", ".doc", ".rtf"}
@@ -449,8 +519,40 @@ class AutomationService:
         self.logger.info("Schedule deleted | id=%s deleted=%s", schedule_id, deleted)
         return deleted
 
+    @staticmethod
+    def _run_has_shutdown_cli_flag(run: dict[str, Any]) -> bool:
+        detail = dict(run.get("detail_json") or {})
+        cmd = [str(part).strip().lower() for part in (detail.get("cmd") or [])]
+        scheduled_args = [str(part).strip().lower() for part in (detail.get("scheduled_args") or [])]
+        return "--shutdown-when-completed" in cmd or "--shutdown-when-completed" in scheduled_args
+
+    def _annotate_run_shutdown_metadata(self, run: dict[str, Any]) -> dict[str, Any]:
+        detail = dict(run.get("detail_json") or {})
+        schedule_flag = False
+        schedule_id = run.get("schedule_id")
+        if schedule_id is not None:
+            try:
+                schedule = self.repo.get_schedule(int(schedule_id))
+            except Exception:
+                schedule = None
+            if schedule is not None:
+                schedule_flag = bool(schedule.get("shutdown_when_completed"))
+        cli_flag = self._run_has_shutdown_cli_flag(run)
+        run["scheduled_for"] = str(detail.get("scheduled_for") or "").strip()
+        run["shutdown_when_completed"] = bool(schedule_flag or cli_flag)
+        if schedule_flag and cli_flag:
+            run["shutdown_source"] = "schedule+cli"
+        elif schedule_flag:
+            run["shutdown_source"] = "schedule"
+        elif cli_flag:
+            run["shutdown_source"] = "cli"
+        else:
+            run["shutdown_source"] = ""
+        return run
+
     def list_runs(self, limit: int) -> list[dict[str, Any]]:
-        return self.repo.list_runs(limit)
+        rows = self.repo.list_runs(limit)
+        return [self._annotate_run_shutdown_metadata(dict(row)) for row in rows]
 
     def delete_run(self, run_id: int) -> bool:
         row = self.repo.get_run(run_id)

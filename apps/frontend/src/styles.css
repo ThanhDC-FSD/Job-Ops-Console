@@ -94,6 +94,41 @@ nav button.active { background: var(--accent); color: #fff; border-color: var(--
 .priority-panel-row select { min-width: 220px; padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
 .priority-panel-title { font-weight: 700; }
 .priority-effective { padding-top: 4px; border-top: 1px dashed var(--line); }
+.inline-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-size: 12px;
+  font-weight: 600;
+  background: #eef5fb;
+  color: #20405c;
+}
+.inline-badge-warn {
+  background: #fff1e8;
+  border-color: #f2b99b;
+  color: #8a2f00;
+}
+.log-viewer-page {
+  max-width: 1600px;
+}
+.log-viewer-pre {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #0f1720;
+  color: #dce8f4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 78vh;
+  overflow: auto;
+  font-family: Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.45;
+}
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th, td { border-bottom: 1px solid var(--line); padding: 7px; text-align: left; }

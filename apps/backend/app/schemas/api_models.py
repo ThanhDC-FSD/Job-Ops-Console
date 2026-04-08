@@ -54,6 +54,10 @@ class ActionArgsPayload(BaseModel):
     args: list[str] = Field(default_factory=list)
 
 
+class PendingRunReschedulePayload(BaseModel):
+    run_at: str = Field(min_length=10)
+
+
 class JobsDeletePayload(BaseModel):
     job_ids: list[int] = Field(default_factory=list)
 

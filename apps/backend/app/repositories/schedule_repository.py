@@ -15,6 +15,13 @@ class ScheduleRepository:
     def __init__(self, db: Database) -> None:
         self.db = db
 
+    @staticmethod
+    def _extract_schedule_shutdown_flag(item: dict[str, Any]) -> bool:
+        crawl_config = item.get("crawl_config_json")
+        if not isinstance(crawl_config, dict):
+            crawl_config = item.get("crawl_config") if isinstance(item.get("crawl_config"), dict) else {}
+        return bool(crawl_config.get("shutdown_when_completed"))
+
     def list_schedules(self, limit: int | None = None) -> list[dict[str, Any]]:
         with self.db.connect() as conn:
             sql = "SELECT * FROM automation_schedules ORDER BY id DESC"
@@ -31,6 +38,7 @@ class ScheduleRepository:
         for row in rows:
             item = dict(row)
             item["crawl_config_json"] = json.loads(item.get("crawl_config_json") or "{}")
+            item["shutdown_when_completed"] = self._extract_schedule_shutdown_flag(item)
             next_run_at = self._next_run_at(item.get("cron_expr"), item.get("timezone"))
             item["next_run_at"] = next_run_at
             override = pending_overrides.get((int(item["id"]), self._normalize_iso_minute(next_run_at)))
@@ -76,6 +84,7 @@ class ScheduleRepository:
             row = conn.execute("SELECT * FROM automation_schedules WHERE id = ?", (new_id,)).fetchone()
         item = dict(row)
         item["crawl_config_json"] = json.loads(item.get("crawl_config_json") or "{}")
+        item["shutdown_when_completed"] = self._extract_schedule_shutdown_flag(item)
         return item
 
     def update_schedule(self, schedule_id: int, payload: dict[str, Any]) -> dict[str, Any] | None:
@@ -108,6 +117,7 @@ class ScheduleRepository:
             row = conn.execute("SELECT * FROM automation_schedules WHERE id = ?", (schedule_id,)).fetchone()
         item = dict(row)
         item["crawl_config_json"] = json.loads(item.get("crawl_config_json") or "{}")
+        item["shutdown_when_completed"] = self._extract_schedule_shutdown_flag(item)
         return item
 
     def list_pending_overrides(self, schedule_id: int | None = None) -> list[dict[str, Any]]:
@@ -386,6 +396,7 @@ class ScheduleRepository:
             return None
         item = dict(row)
         item["crawl_config_json"] = json.loads(item.get("crawl_config_json") or "{}")
+        item["shutdown_when_completed"] = self._extract_schedule_shutdown_flag(item)
         return item
 
     def delete_schedule(self, schedule_id: int) -> bool:

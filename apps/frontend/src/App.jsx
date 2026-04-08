@@ -110,6 +110,38 @@ function toIsoFromDateTimeLocal(value) {
   return parsed.toISOString()
 }
 
+function toDateTimeLocalValue(value) {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const parsed = new Date(raw)
+  if (Number.isNaN(parsed.getTime())) return ''
+  const yyyy = parsed.getFullYear()
+  const mm = String(parsed.getMonth() + 1).padStart(2, '0')
+  const dd = String(parsed.getDate()).padStart(2, '0')
+  const hh = String(parsed.getHours()).padStart(2, '0')
+  const mi = String(parsed.getMinutes()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`
+}
+
+function buildLogViewerUrl(path, options = {}) {
+  if (typeof window === 'undefined') return ''
+  const rawPath = String(path || '').trim()
+  if (!rawPath) return ''
+  const params = new URLSearchParams()
+  params.set('view', 'log')
+  params.set('path', rawPath)
+  if (options.runId) params.set('run_id', String(options.runId))
+  if (options.actionType) params.set('action', String(options.actionType))
+  if (options.running) params.set('running', '1')
+  return `${window.location.origin}${window.location.pathname}?${params.toString()}`
+}
+
+function openLogViewer(path, options = {}) {
+  const url = buildLogViewerUrl(path, options)
+  if (!url || typeof window === 'undefined') return
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
+
 const i18n = {
   en: {
     appTitle: 'Job Ops Console',
@@ -710,6 +742,18 @@ function sortRows(rows, sort) {
     if (av > bv) return 1 * factor
     return 0
   })
+}
+
+function hasShutdownFlag(item) {
+  return Boolean(item?.shutdown_when_completed || item?.crawl_config_json?.shutdown_when_completed)
+}
+
+function shutdownBadgeText(item) {
+  const source = String(item?.shutdown_source || '').trim().toLowerCase()
+  if (source === 'schedule+cli') return 'Shutdown: Schedule + CLI'
+  if (source === 'schedule') return 'Shutdown: Schedule'
+  if (source === 'cli') return 'Shutdown: CLI'
+  return 'Shutdown'
 }
 
 function cvTaggedTextToHtml(value) {
@@ -2900,6 +2944,21 @@ function AutomationTab({ t, lang, onDataChanged }) {
     )
   }
 
+  function isPendingScheduledRun(run) {
+    return String(run?.status || '').toLowerCase() === 'pending' && Boolean(String(run?.scheduled_for || run?.detail_json?.scheduled_for || '').trim())
+  }
+
+  function openRunLog(run) {
+    const detail = run?.detail_json || {}
+    const logPath = String(detail.log_path || '').trim()
+    if (!logPath) return
+    openLogViewer(logPath, {
+      runId: run?.id,
+      actionType: run?.action_type,
+      running: isRunningStatus(run?.status),
+    })
+  }
+
   async function startManualAction(action_type, args = []) {
     setManualActionPending(true)
     try {
@@ -2965,6 +3024,10 @@ function AutomationTab({ t, lang, onDataChanged }) {
   const latestCrawlRun = useMemo(
     () => runs.find((r) => ['crawl_filtered', 'crawl_applied'].includes(String(r.action_type || '').toLowerCase())) || null,
     [runs],
+  )
+  const latestCrawlLogPath = useMemo(
+    () => String(latestCrawlRun?.detail_json?.log_path || '').trim(),
+    [latestCrawlRun],
   )
   const scheduleRows = useMemo(() => sortRows(mergedSchedules, scheduleSort), [mergedSchedules, scheduleSort])
   const runRows = useMemo(() => sortRows(runs, runSort), [runs, runSort])
@@ -3160,6 +3223,25 @@ function AutomationTab({ t, lang, onDataChanged }) {
     await reloadAndNotify()
   }
 
+  async function recallRun(run) {
+    if (!window.confirm(`Recall pending run #${run.id} now?`)) return
+    await api.recallRun(run.id)
+    await reloadAndNotify()
+  }
+
+  async function rescheduleRun(run) {
+    const currentValue = toDateTimeLocalValue(run?.scheduled_for || run?.detail_json?.scheduled_for || '')
+    const nextValue = window.prompt('Set a new time for this pending run (YYYY-MM-DDTHH:mm)', currentValue)
+    if (!nextValue) return
+    const runAt = toIsoFromDateTimeLocal(nextValue)
+    if (!runAt) {
+      window.alert('Invalid date/time format.')
+      return
+    }
+    await api.rescheduleRun(run.id, { run_at: runAt })
+    await reloadAndNotify()
+  }
+
   return (
     <div className="grid single">
       <div className="grid">
@@ -3197,7 +3279,14 @@ function AutomationTab({ t, lang, onDataChanged }) {
                   <div><b>Updated:</b> {progress}</div>
                   <div><b>Log lines:</b> {lineCount}</div>
                   <div><b>Started:</b> {formatGmt7(run.started_at, lang)}</div>
-                  <div><b>Log:</b> {logPath ? <a href={api.fileContentUrl(logPath)} target="_blank" rel="noreferrer">{logPath.split(/[\\/]/).pop()}</a> : '-'}</div>
+                  <div>
+                    <b>Log:</b>{' '}
+                    {logPath ? (
+                      <button className="link-btn" onClick={() => openRunLog(run)}>
+                        {logPath.split(/[\\/]/).pop()}
+                      </button>
+                    ) : '-'}
+                  </div>
                 </div>
               )
             })}
@@ -3207,6 +3296,14 @@ function AutomationTab({ t, lang, onDataChanged }) {
             <div><b>Last crawl:</b> #{latestCrawlRun.id} | {latestCrawlRun.action_type} | {normalizeStatus(latestCrawlRun.status, lang)}</div>
             <div><b>Latest step:</b> {runDetailPreview(latestCrawlRun) || '-'}</div>
             <div><b>Started:</b> {formatGmt7(latestCrawlRun.started_at, lang)}</div>
+            <div>
+              <b>Log:</b>{' '}
+              {latestCrawlLogPath ? (
+                <button className="link-btn" onClick={() => openRunLog(latestCrawlRun)}>
+                  {latestCrawlLogPath.split(/[\\/]/).pop()}
+                </button>
+              ) : '-'}
+            </div>
           </div>
         ) : (
           <div className="muted">No crawl run yet.</div>
@@ -3291,9 +3388,12 @@ function AutomationTab({ t, lang, onDataChanged }) {
               <tr key={`${s.source}_${s.id}`}>
                 <td>{s.id}</td>
                 <td>{s.pipeline_type}</td>
-                <td>{s.name}</td>
+                <td>
+                  <div>{s.name}</div>
+                  {hasShutdownFlag(s) ? <div className="inline-badge inline-badge-warn">{shutdownBadgeText(s)}</div> : null}
+                </td>
                 <td>{s.enabled ? t.yes : t.no}</td>
-                <td>{s.crawl_config_json?.shutdown_when_completed ? t.yes : t.no}</td>
+                <td>{hasShutdownFlag(s) ? t.yes : t.no}</td>
                 <td>{s.cron_expr}</td>
                 <td>{formatGmt7(s.next_run_at || '', lang)}</td>
                 <td>{s.fit_threshold || '-'}</td>
@@ -3328,17 +3428,40 @@ function AutomationTab({ t, lang, onDataChanged }) {
             {runPg.items.map((r) => (
               <tr key={r.id}>
                 <td>{r.id}</td>
-                <td>{r.action_type}</td>
+                <td>
+                  <div>{r.action_type}</div>
+                  {hasShutdownFlag(r) ? <div className="inline-badge inline-badge-warn">{shutdownBadgeText(r)}</div> : null}
+                </td>
                 <td>{normalizeStatus(r.status, lang)}</td>
                 <td>{r.triggered_by}</td>
                 <td>{formatGmt7(r.started_at, lang)}</td>
-                <td title={String(runDetailPreview(r) || '')}>{runDetailPreview(r) || '-'}</td>
+                <td title={String(runDetailPreview(r) || '')}>
+                  <div>{runDetailPreview(r) || '-'}</div>
+                  {isPendingScheduledRun(r) ? <div className="muted">scheduled_for={formatGmt7(r.scheduled_for || r?.detail_json?.scheduled_for || '', lang)}</div> : null}
+                  {String(r?.detail_json?.log_path || '').trim() ? (
+                    <button className="link-btn" onClick={() => openRunLog(r)}>
+                      {String(r.detail_json.log_path || '').trim().split(/[\\/]/).pop()}
+                    </button>
+                  ) : null}
+                </td>
                 <td className="row-actions schedule-action-row">
                   <button
                     onClick={() => pauseRun(r)}
                     disabled={!String(r.status || '').toLowerCase().includes('running')}
                   >
                     {t.pauseRun || 'Pause'}
+                  </button>
+                  <button
+                    onClick={() => recallRun(r)}
+                    disabled={!isPendingScheduledRun(r)}
+                  >
+                    Recall
+                  </button>
+                  <button
+                    onClick={() => rescheduleRun(r)}
+                    disabled={!isPendingScheduledRun(r)}
+                  >
+                    Set Time
                   </button>
                   <button
                     onClick={() => deleteRun(r)}
@@ -3810,7 +3933,91 @@ function LearningQuizTab({ t, lang }) {
   )
 }
 
+function LogViewerPage() {
+  const params = useMemo(() => {
+    if (typeof window === 'undefined') return new URLSearchParams()
+    return new URLSearchParams(window.location.search || '')
+  }, [])
+  const path = String(params.get('path') || '').trim()
+  const runId = String(params.get('run_id') || '').trim()
+  const actionType = String(params.get('action') || '').trim()
+  const shouldPoll = String(params.get('running') || '').trim() === '1'
+  const [content, setContent] = useState('')
+  const [status, setStatus] = useState(path ? 'loading' : 'missing')
+  const [error, setError] = useState('')
+  const [lastLoadedAt, setLastLoadedAt] = useState('')
+
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.title = runId ? `Run #${runId} Log` : 'Run Log Viewer'
+    }
+  }, [runId])
+
+  useEffect(() => {
+    if (!path) return undefined
+    let cancelled = false
+    let timerId = 0
+
+    async function loadLog() {
+      try {
+        const res = await api.fileText(path)
+        if (cancelled) return
+        setContent(String(res?.content || ''))
+        setError('')
+        setStatus('ready')
+        setLastLoadedAt(new Date().toISOString())
+      } catch (err) {
+        if (cancelled) return
+        setError(String(err?.message || err || 'Failed to load log'))
+        setStatus('error')
+      }
+    }
+
+    loadLog()
+    if (shouldPoll) {
+      timerId = window.setInterval(() => {
+        loadLog()
+      }, 2000)
+    }
+
+    return () => {
+      cancelled = true
+      if (timerId) window.clearInterval(timerId)
+    }
+  }, [path, shouldPoll])
+
+  return (
+    <div className="app log-viewer-page">
+      <header>
+        <h1>{runId ? `Run #${runId} Log` : 'Run Log Viewer'}</h1>
+        <div className="header-right">
+          <div className="muted">{actionType || 'automation run'}</div>
+          <div className="muted">{shouldPoll ? 'Auto-refresh: ON' : 'Auto-refresh: OFF'}</div>
+        </div>
+      </header>
+      <main>
+        <div className="card">
+          <div><b>Path:</b> {path || '-'}</div>
+          <div><b>Status:</b> {status}</div>
+          <div><b>Last loaded:</b> {lastLoadedAt ? formatGmt7(lastLoadedAt, 'en') : '-'}</div>
+          {error ? <div className="error-text">{error}</div> : null}
+          <pre className="log-viewer-pre">{content || (status === 'loading' ? 'Loading log...' : 'Log is empty.')}</pre>
+        </div>
+      </main>
+    </div>
+  )
+}
+
 export default function App() {
+  const isLogViewer = useMemo(() => {
+    if (typeof window === 'undefined') return false
+    const params = new URLSearchParams(window.location.search || '')
+    return params.get('view') === 'log'
+  }, [])
+  if (isLogViewer) {
+    return <LogViewerPage />
+  }
+
   const [active, setActive] = useState(() => readStoredState(ACTIVE_TAB_STATE_KEY, 'dashboard'))
   const [dashboard, setDashboard] = useState(null)
   const [appliedTrend, setAppliedTrend] = useState(null)

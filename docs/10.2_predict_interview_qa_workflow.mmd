@@ -1,0 +1,90 @@
+flowchart TD
+    A[Interview Q&A workflow] --> B[Frontend input]
+    B --> B1[Job IDs]
+    B --> B2[CV path]
+    B --> B3[Recent days]
+    B --> B4[Max jobs]
+    B --> B5[Start job time]
+    B --> B6[JD text or JD file]
+    B --> B7[Force]
+    B --> B8[Shutdown when completed]
+
+    A --> C[Frontend normalization]
+    C --> C1[Repeat --job-id]
+    C --> C2[Add --cv-path]
+    C --> C3[Clamp --recent-days]
+    C --> C4[Clamp --limit]
+    C --> C5[Encode --jd-text-base64]
+    C --> C6[Convert run_at to ISO UTC]
+
+    C --> D{Has run_at?}
+    D -->|No| E[Create running automation run]
+    D -->|Yes| F[Create pending automation run]
+    F --> F1[Store scheduled_for and scheduled_args]
+    F1 --> F2[Scheduler date trigger]
+    F2 --> F3[execute_pending_run]
+    F3 --> G[execute_action_run]
+    E --> G
+
+    F --> F4[Restart after scheduled_for can leave run pending]
+    F4 --> F5[UI rescue actions]
+    F5 --> F6[Recall]
+    F5 --> F7[Set Time]
+
+    G --> H[Spawn predict_night.py]
+    H --> I{Feature flag on or force?}
+    I -->|No| J[Skip safely]
+    I -->|Yes| K[Read CV]
+
+    K --> L[Load jobs from SQLite]
+    K --> M[Decode JD text]
+    L --> N[Build candidate jobs]
+    M --> N
+    N --> O[Collect evidence]
+    O --> P[Assemble prompt]
+    P --> Q[Generate with local model]
+    Q --> R{Vet pass?}
+    R -->|Yes| S[Vet result]
+    R -->|No| T[Use generate result]
+    S --> U[Persist results]
+    T --> U
+    U --> V[Write summary artifacts and logs]
+    V --> W{Shutdown flag?}
+    W -->|Yes| X[Issue shutdown]
+    W -->|No| Y[Finish run]
+
+    A --> Z[Lightweight pipeline for weak machines]
+    Z --> Z1[Target setup]
+    Z1 --> Z2[Source priority]
+    Z2 --> Z3[Lightweight crawl]
+    Z3 --> Z4[Robots cache]
+    Z3 --> Z5[Fetch HTML]
+    Z3 --> Z6[Extract minimal text]
+    Z3 --> Z7[Store raw and parsed]
+    Z3 --> Z8[Early scoring]
+    Z8 --> Z9{Need heavy crawl?}
+    Z9 -->|Yes| ZA[Conditional JS or PDF crawl]
+    Z9 -->|No| ZB[Skip heavy path]
+    ZA --> ZC[Text normalization]
+    ZB --> ZC
+    ZC --> ZD[Rule-based extraction]
+    ZD --> ZE[Light ranking]
+    ZE --> ZF[Top evidence and outline]
+    ZF --> ZG[Qwen final synthesis]
+    ZG --> ZH[Persist results and metrics]
+
+    ZE --> ZI[BM25 or TF-IDF]
+    ZE --> ZJ[Keyword scoring]
+    ZE --> ZK[Small embeddings when needed]
+
+    Z --> ZL[Storage]
+    ZL --> ZL1[SQLite or DuckDB]
+    ZL --> ZL2[JSONL logs]
+    ZL --> ZL3[Gzip raw HTML]
+
+    Z --> ZM[Metrics]
+    ZM --> ZM1[Crawl success rate]
+    ZM --> ZM2[Parse success rate]
+    ZM --> ZM3[Relevance score]
+    ZM --> ZM4[Qwen latency]
+    ZM --> ZM5[RAM peak]

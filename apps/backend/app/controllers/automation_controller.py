@@ -16,6 +16,7 @@ from app.schemas.api_models import (
     CvRewriteRenderPayload,
     FitEvaluatePayload,
     LinkedinApplyPayload,
+    PendingRunReschedulePayload,
     SchedulePayload,
     ScheduleOccurrenceUpdatePayload,
     ScheduleUpdatePayload,
@@ -488,6 +489,27 @@ def build_automation_router(
                 triggered_by="manual_resume",
             )
         return started
+
+    @router.post("/runs/{run_id}/recall")
+    def recall_run(run_id: int, background_tasks: BackgroundTasks) -> dict:
+        try:
+            recalled = automation.recall_pending_run(run_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        background_tasks.add_task(automation.execute_pending_run, run_id)
+        if scheduler_runtime is not None:
+            scheduler_runtime.sync_jobs()
+        return recalled
+
+    @router.post("/runs/{run_id}/reschedule")
+    def reschedule_run(run_id: int, payload: PendingRunReschedulePayload) -> dict:
+        try:
+            updated = automation.reschedule_pending_run(run_id, payload.run_at)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if scheduler_runtime is not None:
+            scheduler_runtime.sync_jobs()
+        return updated
 
     @router.get("/files/content")
     def file_content(path: str = Query(..., min_length=1)) -> FileResponse:

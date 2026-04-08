@@ -1,164 +1,88 @@
-%% File: 10.1_current_system_explanation.mmd
-%% Synced with current showcase branch and separated into public vs internal views.
-
 flowchart TD
-  A[10.1 Current System Explanation]
+    A[Job Ops Console hiện tại] --> B[Góc nhìn UI / Showcase]
+    A --> C[Góc nhìn vận hành / kỹ thuật]
 
-  subgraph Public["Current public showcase state"]
-    P1[README positions repo as showcase-only branch]
-    P2[Public assets: video, screenshots, code excerpts]
-    P3[Architecture note presents product and technical direction]
-    P4[Reviewers see a curated product narrative, not full production source]
-    P5[README mentions local CI/CD + deployment loop, not public hosting]
-  end
+    B --> B1[Dashboard]
+    B --> B2[Jobs]
+    B --> B3[Applied Jobs]
+    B --> B4[Reposts Analytics]
+    B --> B5[Learning Quiz]
+    B --> B6[Automation]
 
-  subgraph Internal["Internal system snapshot"]
-    I1[Docs 01-10 describe operational workflows]
-    I2[Crawl normalize store jobs and learning data]
-    I3[Fit evaluation uses heuristic path with optional LLM rerank]
-    I4[CV rewrite and artifact rendering remain key user-facing flow]
-    I5[Scheduler automation logging and SQLite support end-to-end operation]
-    I6[Local deployment flow: sanitized publisher repo + bare git remote + runtime vault]
-    I7[CD-friendly services on 127.0.0.1:8102 (API) + 127.0.0.1:5182 (FE)]
-    I8[Idle DB sync keeps schema copy aligned when no automation runs]
-  end
+    B1 --> B1A[KPI tổng quan]
+    B1 --> B1B[Jobs Density Map]
+    B1 --> B1C[Applied Jobs Trend]
+    B1 --> B1D[Recent Runs]
 
-  subgraph Boundary["Public vs internal boundary"]
-    B1[Showcase truth: presentation-ready product story]
-    B2[Internal truth: workflow, tuning, bottlenecks, runtime limits]
-    B3[Retrieval or RAG references must state whether they are default, optional, or planned]
-    B4[Deployment is local/orchestrated only; no public production hosting]
-  end
+    B2 --> B2A[Lọc / sort / paging]
+    B2 --> B2B[Job detail modal]
+    B2 --> B2C[Generate CV]
+    B2 --> B2D[Apply]
+    B2 --> B2E[Mark Applied Manual]
+    B2 --> B2F[Delete]
 
-  subgraph Tuning["Documented tuning snapshot"]
-    T1[Hash cache and cache_version for chunk/embed]
-    T2[Prompt budgets and top-k caps]
-    T3[Timing logs and gateway health flags]
-    T4[Optional retrieval path with heuristic fallback]
-    T5[Optional ETL skip-hash and embedding state]
-    T6[Automation pause/resume via flag + checkpoint JSON]
-    T7[Offline context-pack build after ETL + online load when flag ON]
-    T8[SQLite WAL persisted cache for context-pack and tuning artifacts]
-    T9[Run-now benchmark loop with p95 regression gate + docs marker upsert]
-    T10[Automation schedule table unified: next-run preview and schedules in one operator view]
-    T11[Single-occurrence override uses date job + skip of original cron occurrence]
-    T12[Automation tables use responsive wrappers and column width budgets for narrow monitors]
-    T13[Schedule edit actions collapse into one Edit dropdown to reduce Actions column width]
-    T14[Per-schedule shutdown flag stored in crawl_config and shown in UI]
-    T15[Jobs table widened (min-width 1400px, fixed layout, column widths) to avoid hidden info]
-    T16[App layout max-width increased to 1500px]
-    T17[CV preview short-circuits materialization when artifacts already exist]
-    T18[Manual crawl supports company filter via --company-filter]
-    T19[UI i18n vi locale falls back to English per no-Vietnamese-in-code rule]
-    T20[Status parsing restricted to English keywords only]
-    T21[Run Crawl Filtered uses a single dropdown (All or Company with inline input)]
-    T22[Manual Actions dropdown expands within card to avoid clipping]
-    T23[Runs table shows step counter for running runs based on phase]
-    T24[Automation runs include Pause/Resume controls and paused status in UI]
-    T25[Company filter rewrites search keywords to reduce crawl scope before filtering]
-    T48[Automation schedules table now includes Pause schedule Edit schedule and Delete actions in one row]
-    T49[Create Schedule and Edit schedule both expose a Shutdown when completed checkbox]
-    T51[Runs table now exposes Pause and Delete actions for active and historical runs]
-    T28[Jobs tab now resets to filtered stage by default and filtered API results hide applied plus non-actionable company_under_review/manual_only/closed jobs]
-    T33[Applied Jobs API now infers applied state from apply evidence (apply date/source/events) instead of relying only on is_applied tracking flag]
-    T32[Jobs page follows the release behavior again: jobs with CV show CV Apply and Mark Applied Manual, while jobs without CV show Generate CV]
-    T38[Automation page matches the release snapshot again by restoring Run Crawl Monitor plus Create Schedule Schedules and Runs cards]
-    T29[Manual actions emit a confirmation message (e.g., “Triggered predict_interview_qa” or failure diagnostics) so operators see the request result]
-    T27[CV artifact render falls back to a minimal docx writer when the Python render script can’t run]
-    T26[Learning Quiz subpage Interview Q&A triggers predict_interview_qa]
-    T31[Interview Q&A subpage includes job_ids cv_path recent_days limit start job time plus JD paste and file upload inputs that encode into --jd-text-base64]
-    T40[Learning Quiz now keeps Interview Q&A beside Knowledge as a dedicated subpage]
-    T50[Learning Quiz submissions can set run_at and triggered_by=learning_quiz while still landing in automation_runs for management]
-    T41[Automation reload uses only real backend routes and no longer depends on missing client wrappers like automationQueue or scheduleLearningEtl]
-    T42[Automation reload uses Promise.allSettled so a temporary GET failure or SQLite lock does not blank the whole tab]
-    T43[Learning ETL scheduling in the UI maps to POST /api/schedules with pipeline_type=learning_etl]
-    T44[Git hygiene excludes .env and CV/personal .docx .pdf .txt files from commits]
-    T45[tmp_seek_automation is tracked as a code bundle while sqlite locks pauses input and benchmark results stay excluded]
-    T46[Selected root tmp helpers are kept for file-size sqlite schema and row update checks while CV-path probes stay untracked]
-    T47[DB-related commits should create a timestamped db_snapshot_<timestamp>.sql for traceability]
-    T37[Automation tab calls learningTopics first so it can pass the required topic_key to learningQuiz/learningKnowledge, keeping the knowledge and quiz cards in sync with the dedicated Learning tab]
-    T39[Learning knowledge quiz and history are moved back to the dedicated Learning tab so Automation only keeps operations controls]
-  end
+    B3 --> B3A[Danh sách job đã apply]
+    B3 --> B3B[Ngày apply]
+    B3 --> B3C[Đối chiếu trạng thái ứng tuyển]
 
-  subgraph Perf["Performance note for this doc update"]
-    PF1[Pause/resume adds lightweight flag checks + checkpoint write]
-    PF2[No user-facing latency impact unless pause is used]
-    PF3[Observability improved with pause_requested/paused metadata]
-    PF4[Company-filter search reduces job card fetch volume when targeting one company]
-  end
+    B4 --> B4A[Chạy analytics]
+    B4 --> B4B[Insight theo company]
+    B4 --> B4C[Mở ngược về Jobs]
 
-  subgraph Host["Available host config snapshot (2026-04-05)"]
-    H1[CPU: Intel Core i5-4200M @ 2.50GHz (~2494 MHz)]
-    H2[Logical processors: 4]
-    H3[RAM: 16,136 MB total (5,967 MB available at snapshot)]
-    H4[GPU: NVIDIA GeForce GT 740M (2 GB) + Intel HD 4600 (1 GB)]
-    H5[OS: Windows 10 Pro 22H2 (Build 19045, UBR 6466)]
-    H6[Storage: WDC WD10SPZX-00Z10T0 (~1 TB) + KINGSTON SA400S37480G (~480 GB)]
-    H7[Network: Wi-Fi AR9485WB-EG (IP 192.168.1.210), Ethernet + Bluetooth PAN disconnected]
-  end
+    B5 --> B5A[Quiz]
+    B5 --> B5B[Knowledge]
+    B5 --> B5C[Interview Q&A]
 
-  subgraph LLM["LLM runtime snapshot (2026-04-05)"]
-    L1[Qwen models: qwen2.5:1.5b-instruct (default), qwen2.5:0.5b-instruct (detail validator)]
-    L2[Ollama runtime: 0.20.2]
-    L3[Env overrides may change resolved model/provider]
-    L4[Nightly interview Q&A prediction uses local Qwen via Ollama by default]
-  end
+    B5C --> B5C1[Job IDs]
+    B5C --> B5C2[CV path]
+    B5C --> B5C3[Recent days]
+    B5C --> B5C4[Max jobs]
+    B5C --> B5C5[Start job time]
+    B5C --> B5C6[JD text / JD file]
+    B5C --> B5C7[Force]
+    B5C --> B5C8[Shutdown when completed]
+    B5C --> B5C9[Lightweight pipeline in 10.2]
 
-  A --> Public
-  A --> Internal
-  A --> Boundary
-  Internal --> Tuning
-  A --> Perf
-  A --> Host
-  A --> LLM
+    B6 --> B6A[Summary cards]
+    B6 --> B6B[Manual Actions]
+    B6 --> B6C[Run Crawl Monitor]
+    B6 --> B6D[Create Schedule]
+    B6 --> B6E[Schedules]
+    B6 --> B6F[Runs]
 
-  P3 --> B1
-  I1 --> B2
-  T4 --> B3
-  T10 --> B2
-  T11 --> B2
-  T12 --> B2
-  T13 --> B2
-  T14 --> B2
-  T15 --> B2
-  T16 --> B2
-  T17 --> B2
-  T18 --> B2
-  T19 --> B2
-  T20 --> B2
-  T21 --> B2
-  T22 --> B2
-  T23 --> B2
-  T24 --> B2
-  T25 --> B2
-  T28 --> B2
-  T29 --> B2
-  T27 --> B2
-  T26 --> B2
-  T31 --> B2
-  T40 --> B2
-  T41 --> B2
-  T42 --> B2
-  T43 --> B2
-  T44 --> B2
-  T45 --> B2
-  T46 --> B2
-  T47 --> B2
-  T48 --> B2
-  T49 --> B2
-  T51 --> B2
-  T50 --> B2
-  T32 --> B2
-  T37 --> B2
-<!-- BEGIN PC_TUNING_RUN_RESULT -->
-Run timestamp: `2026-04-04 14:57:02`
+    B6C --> B6C1[Latest step]
+    B6C --> B6C2[Started time]
+    B6C --> B6C3[Log file]
 
-| Scenario | PatchTag | sample_n | avg_ms | p50_ms | p95_ms | max_ms | avg_prompt_tokens | avg_selected_ctx | fallback_rate |
-|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
-| cv_rewrite_preview | baseline | 30 | 87.981 | 74.871 | 172.969 | 196.955 | 467.00 | 3.93 | 1.000 |
-| cv_rewrite_preview | patch_1_retrieval | 30 | 78.715 | 72.137 | 143.122 | 153.696 | 467.00 | 3.93 | 1.000 |
-| cv_rewrite_preview | patch_2_rerank_caps | 30 | 83.013 | 74.060 | 155.763 | 160.235 | 467.00 | 3.93 | 1.000 |
-| cv_rewrite_preview | patch_3_context_pack | 30 | 72.913 | 70.564 | 85.571 | 105.402 | 467.00 | 3.93 | 1.000 |
-| cv_rewrite_preview | patch_4_token_budget | 30 | 72.722 | 71.487 | 82.471 | 98.164 | 467.00 | 3.93 | 1.000 |
+    B6E --> B6E1[Enabled]
+    B6E --> B6E2[Cron]
+    B6E --> B6E3[Next run]
+    B6E --> B6E4[Shutdown when completed]
 
-<!-- END PC_TUNING_RUN_RESULT -->
+    B6F --> B6F1[Status / phase / progress]
+    B6F --> B6F2[Log file]
+    B6F --> B6F3[Pause / Resume]
+    B6F --> B6F4[Recall]
+    B6F --> B6F5[Set Time]
+
+    C --> C1[Frontend React]
+    C --> C2[Backend FastAPI]
+    C --> C3[APScheduler]
+    C --> C4[SQLite]
+    C --> C5[Scripts Python]
+    C --> C6[Local model / local gateway]
+
+    C --> D[Các lưu ý vận hành]
+    D --> D1[Pending run có thể kẹt nếu restart sau giờ hẹn]
+    D --> D2[Recall và Set Time là cơ chế backfill thủ công]
+    D --> D3[Shutdown có thể đến từ schedule hoặc prediction run]
+    D --> D4[Log file là nguồn chẩn đoán quan trọng]
+    D --> D5[Interview Q&A ưu tiên crawl nhẹ rồi mới dùng Qwen]
+
+    A --> E[Luồng showcase đề xuất]
+    E --> E1[Dashboard]
+    E1 --> E2[Jobs]
+    E2 --> E3[Applied Jobs]
+    E3 --> E4[Reposts Analytics]
+    E4 --> E5[Learning Quiz]
+    E5 --> E6[Automation]
