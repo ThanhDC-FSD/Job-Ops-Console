@@ -2088,6 +2088,18 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
   function isClosedJob(job) {
     return getEffectivePriorityFlag(job) === 'closed_no_longer_accepting'
   }
+  function detailProgrammingLanguage(detail) {
+    const primary = String(detail?.programming_language || '').trim()
+    if (primary) return primary
+    const items = Array.isArray(detail?.programming_languages) ? detail.programming_languages.map((x) => String(x || '').trim()).filter(Boolean) : []
+    return items.join(', ')
+  }
+  function detailPostedText(detail) {
+    return String(detail?.posted_time || detail?.latest_posted_time || '').trim()
+  }
+  function detailResponseText(detail) {
+    return String(detail?.response_status || detail?.application_status || detail?.response_note || '').trim()
+  }
   const showAppliedDate = forceAppliedView || String(filters.stage || '') === 'applied'
   function jobRowStyle(job) {
     const effectiveFlag = getEffectivePriorityFlag(job)
@@ -2586,7 +2598,7 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
             <p><b>{t.company}:</b> {detail.company}</p>
             <p><b>{t.location}:</b> {detail.location}</p>
             <p><b>{t.workModel || 'Work Model'}:</b> {detail.work_model || '-'} | <b>{t.employmentType || 'Employment Type'}:</b> {detail.employment_type || '-'}</p>
-            <p><b>{t.programLanguage}:</b> {detail.programming_language || '-'}</p>
+            <p><b>{t.programLanguage}:</b> {detailProgrammingLanguage(detail) || '-'}</p>
             <p>
               <b>{t.linkedinLink}:</b>{' '}
               {(detail.job_url_final || detail.job_url) ? (
@@ -2596,8 +2608,8 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
               ) : '-'}
             </p>
             <p><b>{t.postedDate}:</b> {detail.linkedin_posted_date || '-'} ({t.estimatedFromText})</p>
-            <p><b>{t.postedTimeText}:</b> {detail.latest_posted_time || '-'}</p>
-            <p><b>{t.applied}:</b> {detail.is_applied ? t.yes : t.no} | <b>{t.response}:</b> {detail.response_status || '-'}</p>
+            <p><b>{t.postedTimeText}:</b> {detailPostedText(detail) || '-'}</p>
+            <p><b>{t.applied}:</b> {detail.is_applied ? t.yes : t.no} | <b>{t.response}:</b> {detailResponseText(detail) || '-'}</p>
             {isManualReviewJob(detail) ? (
               <p><b>{t.manualReview || 'Manual Review'}:</b> {detail.manual_review_note || '-'}</p>
             ) : null}
