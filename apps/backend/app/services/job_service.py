@@ -400,12 +400,25 @@ class JobService:
         pdf_path = str(row.get("generated_pdf_path") or row.get("pdf_path") or "").strip()
         docx_path = str(row.get("generated_docx_path") or row.get("docx_path") or "").strip()
         cv_path = str(row.get("generated_cv_text_path") or row.get("cv_path") or "").strip()
+        cover_letter_txt_path = str(row.get("cover_letter_path") or "").strip()
+        cover_letter_docx_path = str(
+            row.get("generated_cover_letter_docx_path") or row.get("cover_letter_docx_path") or ""
+        ).strip()
+        cover_letter_pdf_path = str(
+            row.get("generated_cover_letter_pdf_path") or row.get("cover_letter_pdf_path") or ""
+        ).strip()
         if pdf_path:
             row["pdf_path"] = pdf_path
         if docx_path:
             row["docx_path"] = docx_path
         if cv_path:
             row["cv_path"] = cv_path
+        if cover_letter_txt_path:
+            row["cover_letter_path"] = cover_letter_txt_path
+        if cover_letter_docx_path:
+            row["cover_letter_docx_path"] = cover_letter_docx_path
+        if cover_letter_pdf_path:
+            row["cover_letter_pdf_path"] = cover_letter_pdf_path
         return row
 
     @staticmethod

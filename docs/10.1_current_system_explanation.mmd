@@ -8,6 +8,7 @@ flowchart TD
     B --> B4[Reposts Analytics]
     B --> B5[Learning Quiz]
     B --> B6[Automation]
+    B --> B7[UI feature inventory in 10.3]
 
     B1 --> B1A[KPI tổng quan]
     B1 --> B1B[Jobs Density Map]
@@ -82,6 +83,11 @@ flowchart TD
     D --> D7[Details modal dùng normalized fields với fallback hiển thị]
     D --> D8[Empty preview paths không còn bị coi nhầm là existing files]
     D --> D9[PDF fallback được tạo khi docx2pdf fail]
+    D --> D10[Interview QA runtime now uses modular package under scripts/python/interview_qa]
+    D10 --> D10A[contracts job_loader ranking]
+    D10 --> D10B[prompts llm schema]
+    D10 --> D10C[reporting storage runner]
+    D --> D11[CV preview exposes cover-letter txt docx and pdf paths]
 
     A --> E[Luồng showcase đề xuất]
     E --> E1[Dashboard]

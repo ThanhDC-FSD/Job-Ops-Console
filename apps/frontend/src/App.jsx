@@ -2010,6 +2010,8 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
       portfolio_path: String(job?.portfolio_path || ''),
       video_path: String(job?.generated_video_path || ''),
       cover_letter_path: String(job?.cover_letter_path || ''),
+      cover_letter_docx_path: String(job?.cover_letter_docx_path || job?.generated_cover_letter_docx_path || ''),
+      cover_letter_pdf_path: String(job?.cover_letter_pdf_path || job?.generated_cover_letter_pdf_path || ''),
       headline: String(job?.generated_headline || ''),
       summary: String(job?.generated_summary || ''),
       experience_summary: String(job?.generated_experience_summary || ''),
@@ -2738,19 +2740,22 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
       <Modal open={!!cvPreview} onClose={() => setCvPreview(null)} title={`${t.previewCv || 'Preview CV'}: ${cvPreview?.title || cvPreview?.job_id || ''}`} t={t}>
         {cvPreview && (
           <>
-            <p><b>PDF Path:</b> {cvPreview.pdf_path || '-'} {cvPreview.pdf_path ? <button onClick={() => copyToClipboard(cvPreview.pdf_path)}>Copy</button> : null}</p>
-            <p><b>DOCX Path:</b> {cvPreview.docx_path || '-'} {cvPreview.docx_path ? <button onClick={() => copyToClipboard(cvPreview.docx_path)}>Copy</button> : null}</p>
-            <p><b>TXT Path:</b> {cvPreview.cv_path || '-'} {cvPreview.cv_path ? <button onClick={() => copyToClipboard(cvPreview.cv_path)}>Copy</button> : null}</p>
-            <p><b>Portfolio PDF:</b> {cvPreview.portfolio_path || '-'} {cvPreview.portfolio_path ? <><a href={api.fileContentUrl(cvPreview.portfolio_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.portfolio_path)}>Copy</button></> : null}</p>
-            <p><b>Video Path:</b> {cvPreview.video_path || '-'} {cvPreview.video_path ? <button onClick={() => copyToClipboard(cvPreview.video_path)}>Copy</button> : null}</p>
-            <p><b>LLM Backend:</b> {cvPreview.llm_backend || cvPreview.llm_usage?.llm_backend || '-'}</p>
-            <p><b>LLM Model:</b> {cvPreview.llm_model || '-'}</p>
-            <p><b>LLM Status:</b> {cvPreview.llm_usage?.fallback ? `Fallback (${cvPreview.llm_usage?.fallback_reason || 'unknown'})` : (cvPreview.llm_backend === 'gateway_ollama_chat' ? 'Gateway -> Ollama' : 'Gateway')}</p>
-            <p><b>Cover Letter:</b></p>
-            {coverLetterTextLoading ? (
-              <p className="muted">{t.loading || 'Loading...'}</p>
-            ) : coverLetterText ? (
-              <div className="code">{coverLetterText}</div>
+              <p><b>PDF Path:</b> {cvPreview.pdf_path || '-'} {cvPreview.pdf_path ? <button onClick={() => copyToClipboard(cvPreview.pdf_path)}>Copy</button> : null}</p>
+              <p><b>DOCX Path:</b> {cvPreview.docx_path || '-'} {cvPreview.docx_path ? <button onClick={() => copyToClipboard(cvPreview.docx_path)}>Copy</button> : null}</p>
+              <p><b>TXT Path:</b> {cvPreview.cv_path || '-'} {cvPreview.cv_path ? <button onClick={() => copyToClipboard(cvPreview.cv_path)}>Copy</button> : null}</p>
+              <p><b>Portfolio PDF:</b> {cvPreview.portfolio_path || '-'} {cvPreview.portfolio_path ? <><a href={api.fileContentUrl(cvPreview.portfolio_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.portfolio_path)}>Copy</button></> : null}</p>
+              <p><b>Video Path:</b> {cvPreview.video_path || '-'} {cvPreview.video_path ? <button onClick={() => copyToClipboard(cvPreview.video_path)}>Copy</button> : null}</p>
+              <p><b>LLM Backend:</b> {cvPreview.llm_backend || cvPreview.llm_usage?.llm_backend || '-'}</p>
+              <p><b>LLM Model:</b> {cvPreview.llm_model || '-'}</p>
+              <p><b>LLM Status:</b> {cvPreview.llm_usage?.fallback ? `Fallback (${cvPreview.llm_usage?.fallback_reason || 'unknown'})` : (cvPreview.llm_backend === 'gateway_ollama_chat' ? 'Gateway -> Ollama' : 'Gateway')}</p>
+              <p><b>Cover Letter TXT Path:</b> {cvPreview.cover_letter_path || '-'} {cvPreview.cover_letter_path ? <button onClick={() => copyToClipboard(cvPreview.cover_letter_path)}>Copy</button> : null}</p>
+              <p><b>Cover Letter DOCX Path:</b> {cvPreview.cover_letter_docx_path || '-'} {cvPreview.cover_letter_docx_path ? <><a href={api.fileContentUrl(cvPreview.cover_letter_docx_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.cover_letter_docx_path)}>Copy</button></> : null}</p>
+              <p><b>Cover Letter PDF Path:</b> {cvPreview.cover_letter_pdf_path || '-'} {cvPreview.cover_letter_pdf_path ? <><a href={api.fileContentUrl(cvPreview.cover_letter_pdf_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.cover_letter_pdf_path)}>Copy</button></> : null}</p>
+              <p><b>Cover Letter:</b></p>
+              {coverLetterTextLoading ? (
+                <p className="muted">{t.loading || 'Loading...'}</p>
+              ) : coverLetterText ? (
+                <div className="code">{coverLetterText}</div>
             ) : (
               <p>-</p>
             )}

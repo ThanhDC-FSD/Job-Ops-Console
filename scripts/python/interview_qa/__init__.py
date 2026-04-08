@@ -1,17 +1,14 @@
-from __future__ import annotations
+"""Interview Q&A prediction pipeline package."""
 
 import sys
 from pathlib import Path
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 BACKEND_ROOT = PROJECT_ROOT / "apps" / "backend"
+
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
-from scripts.python.interview_qa.runner import main
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())
+__all__: list[str] = []

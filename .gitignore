@@ -21,6 +21,8 @@
 !docs/**
 !scripts/
 !scripts/**
+!tests/
+!tests/**
 !showcase_assets/
 !showcase_assets/**
 

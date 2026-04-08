@@ -32,6 +32,7 @@ flowchart TD
     F5 --> F7[Set Time]
 
     G --> H[Spawn predict_night.py]
+    H --> H1[Compatibility wrapper to interview_qa.runner]
     H --> I{Feature flag on or force?}
     I -->|No| J[Skip safely]
     I -->|Yes| K[Read CV]
@@ -76,6 +77,11 @@ flowchart TD
     ZE --> ZI[BM25 or TF-IDF]
     ZE --> ZJ[Keyword scoring]
     ZE --> ZK[Small embeddings when needed]
+
+    A --> R1[Current module layout]
+    R1 --> R2[job_loader and ranking]
+    R1 --> R3[prompts llm schema]
+    R1 --> R4[reporting storage runner]
 
     Z --> ZL[Storage]
     ZL --> ZL1[SQLite or DuckDB]
