@@ -824,25 +824,36 @@ class JobService:
                     "cover_letter_pdf_path": self._resolve_existing_path(expected_paths.get("cover_pdf", "")) or row.get("cover_letter_pdf_path"),
                 }
             )
-            # Short-circuit materialization if artifacts already exist to reduce latency.
-            has_cv_files = any(
-                self._nonempty_file_exists(p)
-                for p in [
-                    row.get("generated_cv_text_path"),
-                    row.get("generated_docx_path"),
-                    row.get("generated_pdf_path"),
-                    row.get("cv_source_path"),
-                ]
+            cv_text_present = bool(str(artifact.get("cv_text") or "").strip())
+            portfolio_text_present = bool(str(artifact.get("portfolio_text") or "").strip())
+            cover_letter_text_present = bool(str(artifact.get("cover_letter_text") or "").strip())
+            fit_report_text_present = bool(str(artifact.get("fit_report_text") or "").strip())
+            cv_ready = (
+                self._nonempty_file_exists(row.get("generated_cv_text_path"))
+                and self._nonempty_file_exists(row.get("generated_docx_path"))
+                and self._nonempty_file_exists(row.get("generated_pdf_path"))
             )
-            has_cover_files = any(
-                self._nonempty_file_exists(p)
-                for p in [
-                    row.get("cover_letter_path"),
-                    row.get("cover_letter_docx_path"),
-                    row.get("cover_letter_pdf_path"),
-                ]
+            portfolio_ready = True
+            if portfolio_text_present:
+                portfolio_ready = self._nonempty_file_exists(expected_paths.get("portfolio_docx")) and self._nonempty_file_exists(
+                    expected_paths.get("portfolio_pdf")
+                )
+            cover_ready = True
+            if cover_letter_text_present:
+                cover_ready = (
+                    self._nonempty_file_exists(row.get("cover_letter_path"))
+                    and self._nonempty_file_exists(row.get("cover_letter_docx_path"))
+                    and self._nonempty_file_exists(row.get("cover_letter_pdf_path"))
+                )
+            fit_report_ready = True
+            if fit_report_text_present:
+                fit_report_ready = self._nonempty_file_exists(row.get("generated_fit_report_path"))
+            materialization_needed = (
+                (cv_text_present and not cv_ready)
+                or (portfolio_text_present and not portfolio_ready)
+                or (cover_letter_text_present and not cover_ready)
+                or (fit_report_text_present and not fit_report_ready)
             )
-            materialization_needed = not (has_cv_files and has_cover_files)
             if materialization_needed:
                 try:
                     materialize_started_at = time.perf_counter()

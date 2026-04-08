@@ -1,6 +1,7 @@
 import argparse
 import re
 import sys
+import textwrap
 from pathlib import Path
 from typing import Pattern
 
@@ -392,16 +393,124 @@ def convert_text_to_docx(input_path: Path, output_path: Path):
     document.save(output_path)
 
 
-def convert_docx_to_pdf(docx_path: Path, pdf_path: Path):
-    if not DOCX2PDF_AVAILABLE:
-        raise RuntimeError(
-            "Missing dependency: docx2pdf (install with: pip install docx2pdf)"
-        )
+def _escape_pdf_text(value: str) -> str:
+    return value.replace("\\", "\\\\").replace("(", "\\(").replace(")", "\\)")
+
+
+def _latin1_pdf_text(value: str) -> str:
+    return value.encode("latin-1", errors="replace").decode("latin-1")
+
+
+def write_basic_pdf_from_text(text: str, pdf_path: Path) -> None:
     pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    lines: list[str] = []
+    for raw_line in str(text or "").splitlines():
+        normalized = re.sub(r"<[^>]+>", "", raw_line).strip()
+        if not normalized:
+            lines.append("")
+            continue
+        wrapped = textwrap.wrap(normalized, width=92) or [""]
+        lines.extend(wrapped)
+
+    if not lines:
+        lines = [""]
+
+    page_width = 612
+    page_height = 792
+    left = 54
+    top = 744
+    line_height = 14
+    max_lines_per_page = 48
+    pages = [
+        lines[index : index + max_lines_per_page]
+        for index in range(0, len(lines), max_lines_per_page)
+    ] or [[""]]
+
+    objects: list[bytes] = []
+
+    def add_object(payload: bytes) -> int:
+        objects.append(payload)
+        return len(objects)
+
+    font_object = add_object(b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>")
+    page_object_ids: list[int] = []
+    content_object_ids: list[int] = []
+
+    for page_lines in pages:
+        commands = ["BT", "/F1 11 Tf", f"{left} {top} Td"]
+        first_line = True
+        for line in page_lines:
+            safe_line = _escape_pdf_text(_latin1_pdf_text(line))
+            if not first_line:
+                commands.append(f"0 -{line_height} Td")
+            commands.append(f"({safe_line}) Tj")
+            first_line = False
+        commands.append("ET")
+        stream = "\n".join(commands).encode("latin-1", errors="replace")
+        content_object_ids.append(
+            add_object(
+                b"<< /Length "
+                + str(len(stream)).encode("ascii")
+                + b" >>\nstream\n"
+                + stream
+                + b"\nendstream"
+            )
+        )
+        page_object_ids.append(0)
+
+    pages_object_id = add_object(b"<< /Type /Pages /Kids [] /Count 0 >>")
+
+    for index, content_object_id in enumerate(content_object_ids):
+        page_payload = (
+            f"<< /Type /Page /Parent {pages_object_id} 0 R /MediaBox [0 0 {page_width} {page_height}] "
+            f"/Resources << /Font << /F1 {font_object} 0 R >> >> /Contents {content_object_id} 0 R >>"
+        ).encode("ascii")
+        page_object_ids[index] = add_object(page_payload)
+
+    kids = " ".join(f"{object_id} 0 R" for object_id in page_object_ids)
+    objects[pages_object_id - 1] = (
+        f"<< /Type /Pages /Kids [{kids}] /Count {len(page_object_ids)} >>"
+    ).encode("ascii")
+    catalog_object_id = add_object(f"<< /Type /Catalog /Pages {pages_object_id} 0 R >>".encode("ascii"))
+
+    pdf_bytes = bytearray(b"%PDF-1.4\n%\xe2\xe3\xcf\xd3\n")
+    offsets = [0]
+    for object_id, payload in enumerate(objects, start=1):
+        offsets.append(len(pdf_bytes))
+        pdf_bytes.extend(f"{object_id} 0 obj\n".encode("ascii"))
+        pdf_bytes.extend(payload)
+        pdf_bytes.extend(b"\nendobj\n")
+
+    xref_offset = len(pdf_bytes)
+    pdf_bytes.extend(f"xref\n0 {len(objects) + 1}\n".encode("ascii"))
+    pdf_bytes.extend(b"0000000000 65535 f \n")
+    for offset in offsets[1:]:
+        pdf_bytes.extend(f"{offset:010d} 00000 n \n".encode("ascii"))
+    pdf_bytes.extend(
+        (
+            f"trailer\n<< /Size {len(objects) + 1} /Root {catalog_object_id} 0 R >>\n"
+            f"startxref\n{xref_offset}\n%%EOF\n"
+        ).encode("ascii")
+    )
+    pdf_path.write_bytes(pdf_bytes)
+
+
+def convert_docx_to_pdf(docx_path: Path, pdf_path: Path):
+    pdf_path.parent.mkdir(parents=True, exist_ok=True)
+    if DOCX2PDF_AVAILABLE:
+        try:
+            convert_docx2pdf(str(docx_path), str(pdf_path))
+            if pdf_path.exists():
+                return
+        except Exception as exc:
+            print(f"Failed to export PDF via docx2pdf: {exc}")
+    text = ""
     try:
-        convert_docx2pdf(str(docx_path), str(pdf_path))
-    except Exception as exc:
-        raise RuntimeError(f"Failed to export PDF: {exc}") from exc
+        document = Document(str(docx_path))
+        text = "\n".join(paragraph.text for paragraph in document.paragraphs)
+    except Exception:
+        text = ""
+    write_basic_pdf_from_text(text, pdf_path)
 
 
 def main():
@@ -446,11 +555,7 @@ def main():
         pdf_output_path = (
             Path(args.pdf_output) if args.pdf_output else output_path.with_suffix(".pdf")
         )
-        try:
-            convert_docx_to_pdf(output_path, pdf_output_path)
-        except RuntimeError as exc:
-            print(exc)
-            sys.exit(1)
+        convert_docx_to_pdf(output_path, pdf_output_path)
         print(f"Generated: {pdf_output_path}")
 
 
