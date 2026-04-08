@@ -395,6 +395,19 @@ class JobService:
     def _nonempty_values(*values: Any) -> list[str]:
         return [str(value).strip() for value in values if str(value or "").strip()]
 
+    @staticmethod
+    def _apply_preview_path_aliases(row: dict[str, Any]) -> dict[str, Any]:
+        pdf_path = str(row.get("generated_pdf_path") or row.get("pdf_path") or "").strip()
+        docx_path = str(row.get("generated_docx_path") or row.get("docx_path") or "").strip()
+        cv_path = str(row.get("generated_cv_text_path") or row.get("cv_path") or "").strip()
+        if pdf_path:
+            row["pdf_path"] = pdf_path
+        if docx_path:
+            row["docx_path"] = docx_path
+        if cv_path:
+            row["cv_path"] = cv_path
+        return row
+
     def _build_generated_artifact_diagnostics(
         self,
         row: dict[str, Any],
@@ -646,7 +659,7 @@ class JobService:
         row["generated_cover_letter_pdf_path"] = cover_letter_pdf_path
         row["generated_fit_report_path"] = fit_report_path
         row["generated_video_path"] = self._resolve_portfolio_video_path()
-        return row
+        return self._apply_preview_path_aliases(row)
 
     def _enrich_generated_cv_artifacts_light(self, row: dict[str, Any]) -> dict[str, Any]:
         source_path = str(row.get("cv_source_path") or "").strip()
@@ -673,7 +686,7 @@ class JobService:
         row["generated_cover_letter_pdf_path"] = cover_letter_pdf_path
         row["generated_fit_report_path"] = str(row.get("generated_fit_report_path") or "").strip()
         row["generated_video_path"] = self._resolve_portfolio_video_path()
-        return row
+        return self._apply_preview_path_aliases(row)
 
     def list_jobs(
         self,
@@ -873,7 +886,7 @@ class JobService:
             total_elapsed_ms,
             "yes" if materialization_error == "" else "error",
         )
-        return row
+        return self._apply_preview_path_aliases(row)
 
     def repair_generated_artifacts(
         self,
