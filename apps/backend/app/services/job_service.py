@@ -408,6 +408,16 @@ class JobService:
             row["cv_path"] = cv_path
         return row
 
+    @staticmethod
+    def _nonempty_file_exists(value: Any) -> bool:
+        raw = str(value or "").strip()
+        if not raw:
+            return False
+        try:
+            return Path(raw).exists()
+        except Exception:
+            return False
+
     def _build_generated_artifact_diagnostics(
         self,
         row: dict[str, Any],
@@ -816,7 +826,7 @@ class JobService:
             )
             # Short-circuit materialization if artifacts already exist to reduce latency.
             has_cv_files = any(
-                Path(str(p)).exists()
+                self._nonempty_file_exists(p)
                 for p in [
                     row.get("generated_cv_text_path"),
                     row.get("generated_docx_path"),
@@ -825,7 +835,7 @@ class JobService:
                 ]
             )
             has_cover_files = any(
-                Path(str(p)).exists()
+                self._nonempty_file_exists(p)
                 for p in [
                     row.get("cover_letter_path"),
                     row.get("cover_letter_docx_path"),
