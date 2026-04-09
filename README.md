@@ -39,8 +39,10 @@ In addition to the application workflow itself, I also built a practical local d
 
 - [Watch the project showcase video in this repo](showcase_assets/video/job_ops_project_showcase.mp4)
 - [Public GitHub video link](https://github.com/ThanhDC-FSD/Job-Ops-Console/blob/showcase/showcase_assets/video/job_ops_project_showcase.mp4)
+- [Subtitle sidecar](showcase_assets/video/job_ops_project_showcase.srt)
+- [Recording validation manifest](showcase_assets/video/job_ops_project_showcase_validation.json)
 
-The demo focuses on the end-to-end workflow: dashboard visibility, geo analytics, job review workspace, and the automation/LLM pipeline used to produce application artifacts.
+The current demo is a Playwright motion recording of the real UI, narrated in English with a Windows male voice and small synchronized subtitles. It focuses on the end-to-end workflow: dashboard visibility, geo analytics, job review workspace, and the automation/LLM pipeline used to produce application artifacts.
 
 ## Screenshots
 
