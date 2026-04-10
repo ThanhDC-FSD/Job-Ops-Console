@@ -85,6 +85,7 @@ nav button.active { background: var(--accent); color: #fff; border-color: var(--
 .modal-panel { width: min(980px, 94vw); max-height: 88vh; overflow: auto; background: #fff; border-radius: 12px; border: 1px solid var(--line); }
 .modal-head { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: #fff; }
 .modal-head h3 { margin: 0; font-size: 18px; }
+.modal-head-actions { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .modal-head button { border: 1px solid var(--line); border-radius: 8px; background: #fff; padding: 6px 10px; cursor: pointer; }
 .modal-body { padding: 12px; }
 .error-text { color: #b42318; font-size: 13px; margin-top: 8px; }
@@ -178,6 +179,40 @@ th { background: #f4f7fa; }
 .fit-filter-stack { display: grid; grid-template-columns: 1fr; gap: 6px; min-width: 220px; }
 .fit-filter-stack select, .fit-filter-stack input { min-height: 32px; }
 .generated-cv-list { display: flex; flex-direction: column; gap: 4px; margin: 8px 0 10px; }
+.prediction-results-card { margin-top: 14px; }
+.prediction-table-wrap { display: block; width: 100%; overflow-x: auto; }
+.prediction-table { min-width: 1200px; width: 100%; table-layout: fixed; }
+.prediction-table th, .prediction-table td { vertical-align: top; white-space: nowrap; }
+.prediction-table th:nth-child(1), .prediction-table td:nth-child(1) { min-width: 170px; }
+.prediction-table th:nth-child(2), .prediction-table td:nth-child(2) { min-width: 200px; white-space: normal; }
+.prediction-table th:nth-child(3), .prediction-table td:nth-child(3) { min-width: 280px; white-space: normal; }
+.prediction-table th:nth-child(4), .prediction-table td:nth-child(4) { min-width: 100px; }
+.prediction-table th:nth-child(5), .prediction-table td:nth-child(5) { min-width: 110px; }
+.prediction-table th:nth-child(6), .prediction-table td:nth-child(6) { min-width: 100px; }
+.prediction-table th:nth-child(7), .prediction-table td:nth-child(7) { min-width: 90px; }
+.prediction-table th:nth-child(8), .prediction-table td:nth-child(8) { min-width: 90px; }
+.prediction-table th:nth-child(9), .prediction-table td:nth-child(9) { min-width: 80px; }
+.prediction-row { cursor: pointer; }
+.prediction-row:hover { background: #f8fbff; }
+.prediction-title-cell { word-break: break-word; }
+.prediction-detail { display: grid; gap: 12px; }
+.prediction-detail-head { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.prediction-detail-title { font-size: 18px; font-weight: 700; }
+.prediction-detail-meta { display: grid; gap: 4px; min-width: 260px; }
+.prediction-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.prediction-tab-panel { display: grid; gap: 10px; }
+.prediction-question-list { display: grid; gap: 12px; }
+.prediction-question-card { display: grid; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfe; }
+.prediction-question-title { font-weight: 700; white-space: normal; word-break: break-word; }
+.prediction-question-foot { display: flex; justify-content: flex-end; }
+.prediction-section { display: grid; gap: 6px; }
+.prediction-section-title { font-weight: 700; }
+.prediction-text { white-space: pre-wrap; word-break: break-word; }
+.prediction-list { margin: 0; padding-left: 20px; display: grid; gap: 4px; }
+.prediction-sources { border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: #fbfcfe; }
+.prediction-sources > summary { cursor: pointer; font-weight: 700; }
+.prediction-sources-body { display: grid; gap: 12px; margin-top: 10px; }
+.empty-state { padding: 16px 10px; border: 1px dashed var(--line); border-radius: 10px; background: #fcfdff; }
 .generated-cv-section { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
 .action-cell { display: inline-flex; gap: 6px; align-items: center; flex-wrap: wrap; }
 .cv-file-list { display: grid; gap: 6px; max-height: 320px; overflow: auto; margin: 8px 0; border: 1px solid var(--line); border-radius: 8px; padding: 8px; }
