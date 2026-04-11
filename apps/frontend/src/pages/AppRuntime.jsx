@@ -142,6 +142,36 @@ function openLogViewer(path, options = {}) {
   window.open(url, '_blank', 'noopener,noreferrer')
 }
 
+function buildRunLogFallbackText(run) {
+  const row = run || {}
+  const detail = row.detail_json || {}
+  const lines = []
+  lines.push(`Automation run #${row.id || row.run_id || '-'}`)
+  lines.push(`Action: ${row.action_type || '-'}`)
+  lines.push(`Status: ${row.status || '-'}`)
+  if (detail.phase) lines.push(`Phase: ${detail.phase}`)
+  if (detail.progress_message) lines.push(`Progress: ${detail.progress_message}`)
+  if (detail.returncode !== undefined && detail.returncode !== null) lines.push(`Return code: ${detail.returncode}`)
+  if (detail.stdout) {
+    lines.push('')
+    lines.push('Stdout:')
+    lines.push(String(detail.stdout))
+  }
+  if (Array.isArray(detail.stdout_tail_lines) && detail.stdout_tail_lines.length > 0) {
+    lines.push('')
+    lines.push('Stdout tail:')
+    detail.stdout_tail_lines.forEach((line) => {
+      lines.push(String(line || ''))
+    })
+  }
+  if (detail.stderr) {
+    lines.push('')
+    lines.push('Stderr:')
+    lines.push(String(detail.stderr))
+  }
+  return lines.join('\n').trim()
+}
+
 const i18n = {
   en: {
     appTitle: 'Job Ops Console',
@@ -838,26 +868,56 @@ function paginateRows(rows, page, pageSize) {
 function SortTh({ label, col, sort, onSort }) {
   const active = sort.key === col
   const mark = active ? (sort.dir === 'asc' ? '▲' : '▼') : ''
+  const safeLabel = String(label || '').trim() || col
   return (
     <th>
       <button className="sort-btn" onClick={() => onSort(col)}>
-        {label} {mark}
+        {safeLabel} {mark}
       </button>
     </th>
   )
 }
 
-function CheckboxMultiSelect({ options, groups, selected, onChange, t, label, applyMode = false, includeGroupValue = true }) {
+function CheckboxMultiSelect({
+  options,
+  groups,
+  selected,
+  onChange,
+  t,
+  label,
+  applyMode = false,
+  includeGroupValue = true,
+  showLabelInSummary = true,
+}) {
   const [query, setQuery] = useState('')
   const [draftSelected, setDraftSelected] = useState(selected || [])
+  const [open, setOpen] = useState(false)
+  const rootRef = useRef(null)
+  const safeLabel = String(label || '').trim() || 'Filter'
+  const clearText = String(t?.clear || '').trim() || 'Clear'
+  const applyText = String(t?.apply || '').trim() || 'Apply'
+  const selectedText = String(t?.selected || '').trim() || 'selected'
+  const noSelectionText = String(t?.noSelection || '').trim() || 'No selection'
+  const searchText = String(t?.search || '').trim() || 'Search'
   const selectedSet = new Set(selected || [])
   const draftSet = new Set(draftSelected || [])
   const summarySet = applyMode ? draftSet : selectedSet
-  const summary = summarySet.size ? `${summarySet.size} ${t.selected}` : t.noSelection
+  const summary = summarySet.size ? `${summarySet.size} ${selectedText}` : noSelectionText
 
   useEffect(() => {
     setDraftSelected(selected || [])
   }, [selected])
+  useEffect(() => {
+    if (!open) return undefined
+    const handlePointerDown = (event) => {
+      const root = rootRef.current
+      if (!root) return
+      if (root.contains(event.target)) return
+      setOpen(false)
+    }
+    document.addEventListener('pointerdown', handlePointerDown, true)
+    return () => document.removeEventListener('pointerdown', handlePointerDown, true)
+  }, [open])
   const ordered = useMemo(() => {
     const map = new Map()
     for (const opt of options || []) {
@@ -952,13 +1012,18 @@ function CheckboxMultiSelect({ options, groups, selected, onChange, t, label, ap
   }
 
   return (
-    <details className="multi-box">
-      <summary>{label}: {summary}</summary>
+    <details
+      ref={rootRef}
+      className="multi-box"
+      open={open}
+      onToggle={(event) => setOpen(event.currentTarget.open)}
+    >
+      <summary>{showLabelInSummary ? `${safeLabel}: ` : ''}{summary}</summary>
       <div className="multi-panel">
         <div className="multi-toolbar">
           <input
             className="multi-search"
-            placeholder={t.search}
+            placeholder={searchText}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
@@ -970,7 +1035,7 @@ function CheckboxMultiSelect({ options, groups, selected, onChange, t, label, ap
               else onChange([])
             }}
           >
-            {t.clear}
+            {clearText}
           </button>
           {applyMode && (
             <button
@@ -980,7 +1045,7 @@ function CheckboxMultiSelect({ options, groups, selected, onChange, t, label, ap
                 onChange(Array.from(draftSet))
               }}
             >
-              {t.apply || 'Apply'}
+              {applyText}
             </button>
           )}
         </div>
@@ -1096,6 +1161,44 @@ function normalizePredictionArray(value) {
     .filter(Boolean)
 }
 
+function normalizePredictionRichItems(value) {
+  if (!Array.isArray(value)) return []
+  return value
+    .map((item) => {
+      if (item && typeof item === 'object') {
+        return {
+          text: String(item.text || item.summary || item.label || '').trim(),
+          evidence_ids: normalizePredictionArray(item.evidence_ids),
+          evidence_urls: normalizePredictionArray(item.evidence_urls),
+          evidence_titles: normalizePredictionArray(item.evidence_titles),
+          kind: String(item.kind || '').trim(),
+          intent_key: String(item.intent_key || item.intent || '').trim(),
+          proof_bundle_id: String(item.proof_bundle_id || '').trim(),
+          dedup_status: String(item.dedup_status || '').trim(),
+          proof_bundle_uniqueness_score: Number(item.proof_bundle_uniqueness_score || 0),
+          answer_uniqueness_score: Number(item.answer_uniqueness_score || 0),
+          supported_claims: normalizePredictionArray(item.supported_claims),
+          claims_to_avoid: normalizePredictionArray(item.claims_to_avoid),
+        }
+      }
+      return {
+        text: String(item || '').trim(),
+        evidence_ids: [],
+        evidence_urls: [],
+        evidence_titles: [],
+        kind: '',
+        intent_key: '',
+        proof_bundle_id: '',
+        dedup_status: '',
+        proof_bundle_uniqueness_score: 0,
+        answer_uniqueness_score: 0,
+        supported_claims: [],
+        claims_to_avoid: [],
+      }
+    })
+    .filter((item) => item.text || item.evidence_ids.length || item.evidence_urls.length || item.evidence_titles.length)
+}
+
 function sanitizePredictionFilePart(value) {
   return String(value || '')
     .trim()
@@ -1131,11 +1234,37 @@ function appendPredictionMockPlanLines(lines, mockPlan) {
   })
 }
 
+function appendPredictionRichSection(lines, title, items) {
+  if (!items || typeof items !== 'object' || Array.isArray(items)) return
+  const entries = Object.entries(items).filter(([key]) => key !== 'open_unknowns' && key !== 'confidence_breakdown')
+  if (!entries.length) return
+  lines.push('')
+  lines.push(title)
+  entries.forEach(([key, value]) => {
+    if (!value || typeof value !== 'object') return
+    const label = key.replace(/_/g, ' ').replace(/\b\w/g, (match) => match.toUpperCase())
+    appendPredictionTextLine(lines, label, value.summary)
+    appendPredictionListLines(lines, `${label} evidence ids`, value.evidence_ids)
+    appendPredictionListLines(lines, `${label} evidence titles`, value.evidence_titles)
+    appendPredictionListLines(lines, `${label} evidence urls`, value.evidence_urls)
+    if (Array.isArray(value.items) && value.items.length) {
+      appendPredictionListLines(lines, `${label} items`, value.items)
+    }
+    if (Array.isArray(value.case_studies) && value.case_studies.length) {
+      appendPredictionListLines(lines, `${label} case studies`, value.case_studies)
+    }
+    if (Number.isFinite(Number(value.confidence))) {
+      lines.push(`${label} confidence: ${predictionConfidenceLabel(value.confidence)}`)
+    }
+  })
+}
+
 function buildPredictionExportText(detail) {
   const row = detail || {}
   const qaPack = row.qa_pack && Object.keys(row.qa_pack || {}).length ? row.qa_pack : {}
   const interviewBrief = row.interview_brief && Object.keys(row.interview_brief || {}).length ? row.interview_brief : {}
   const gapDrillPlan = row.gap_drill_plan && Object.keys(row.gap_drill_plan || {}).length ? row.gap_drill_plan : {}
+  const metrics = row.metrics && Object.keys(row.metrics || {}).length ? row.metrics : {}
   const questionCards = Array.isArray(qaPack.questions) ? qaPack.questions : []
   const headerTitle = String(row.title || '').trim() || 'Custom JD #1'
   const headerCompany = String(row.company || '').trim() || '-'
@@ -1149,7 +1278,15 @@ function buildPredictionExportText(detail) {
     `Predicted: ${formatGmt7(row.predicted_at, 'en')}`,
     `Mode: ${predictionModeLabel(row.mode)}`,
     `Status: ${predictionStatusLabel(row.status)}`,
+    `Reliability: ${predictionReliabilityLabel(row.reliability_state)}`,
     `Confidence: ${predictionConfidenceLabel(row.overall_confidence)}`,
+    `Supported claim rate: ${predictionConfidenceLabel(row.supported_claim_rate)}`,
+    `Contradictions: ${Number(row.contradiction_count || 0)}`,
+    `Fallback used: ${row.fallback_used ? 'yes' : 'no'}`,
+    `Answer dedup dropped: ${Number(row.metrics?.answer_dedup_dropped_count || metrics.answer_dedup_dropped_count || 0)}`,
+    `Semantic collisions: ${Number(row.metrics?.answer_semantic_collision_count || metrics.answer_semantic_collision_count || 0)}`,
+    `Unique intents: ${Number(row.metrics?.unique_intent_count || metrics.unique_intent_count || 0)}`,
+    `Unique proof bundles: ${Number(row.metrics?.unique_proof_bundle_count || metrics.unique_proof_bundle_count || 0)}`,
     `Questions: ${Number.isFinite(questionCount) ? questionCount : 0}`,
     `Sources: ${Number.isFinite(sourceCount) ? sourceCount : 0}`,
     '',
@@ -1160,13 +1297,20 @@ function buildPredictionExportText(detail) {
   questionCards.forEach((question, idx) => {
     lines.push('')
     lines.push(`${idx + 1}. ${String(question?.question || '-').trim() || '-'}`)
-    appendPredictionTextLine(lines, 'Intent', question?.intent)
+    appendPredictionTextLine(lines, 'Intent', question?.intent_key || question?.intent)
+    appendPredictionTextLine(lines, 'Proof bundle', question?.proof_bundle_id)
+    appendPredictionTextLine(lines, 'Dedup status', question?.dedup_status)
+    appendPredictionTextLine(lines, 'Proof bundle uniqueness', predictionConfidenceLabel(question?.proof_bundle_uniqueness_score))
+    appendPredictionTextLine(lines, 'Answer uniqueness', predictionConfidenceLabel(question?.answer_uniqueness_score))
     appendPredictionTextLine(lines, 'Why this question', question?.why_this_question)
     appendPredictionTextLine(lines, 'Answer short 30s', question?.answer_short_30s)
     appendPredictionTextLine(lines, 'Answer full 2m', question?.answer_full_2m)
     appendPredictionListLines(lines, 'CV evidence', question?.cv_evidence)
     appendPredictionListLines(lines, 'JD evidence', question?.jd_evidence)
     appendPredictionListLines(lines, 'Company evidence', question?.company_evidence)
+    appendPredictionListLines(lines, 'Supported claims', question?.supported_claims)
+    appendPredictionListLines(lines, 'Claims to avoid', question?.claims_to_avoid)
+    appendPredictionListLines(lines, 'Weak claims', question?.weak_claims)
     appendPredictionListLines(lines, 'Follow-up questions', question?.follow_ups)
     appendPredictionListLines(lines, 'Risk notes', question?.risk_notes)
     lines.push(`Confidence: ${predictionConfidenceLabel(question?.confidence)}`)
@@ -1178,22 +1322,37 @@ function buildPredictionExportText(detail) {
   appendPredictionTextLine(lines, 'Company snapshot', interviewBrief.company_snapshot)
   appendPredictionListLines(lines, 'Main products or services', interviewBrief.main_products_or_services)
   appendPredictionListLines(lines, 'Target customers', interviewBrief.target_customers)
+  appendPredictionTextLine(lines, 'Company positioning', interviewBrief.company_positioning)
+  appendPredictionTextLine(lines, 'What they really sell', interviewBrief.what_they_really_sell)
+  appendPredictionTextLine(lines, 'Delivery model', interviewBrief.delivery_model)
+  appendPredictionListLines(lines, 'Public proof or case studies', interviewBrief.public_proof_or_case_studies)
+  appendPredictionTextLine(lines, 'Team or interviewer lens', interviewBrief.team_or_interviewer_lens)
+  appendPredictionTextLine(lines, 'Why this role exists now', interviewBrief.why_this_role_exists_now)
   appendPredictionListLines(lines, 'Market signals from JD', interviewBrief.market_signals_from_jd)
   appendPredictionListLines(lines, 'Top strengths from CV', interviewBrief.top_strengths_from_cv)
   appendPredictionListLines(lines, 'Top 5 must-say points', interviewBrief.top_5_must_say_points)
   appendPredictionListLines(lines, 'Questions to ask interviewer', interviewBrief.questions_to_ask_interviewer)
+  appendPredictionListLines(lines, 'Open unknowns', interviewBrief.open_unknowns)
+  appendPredictionTextLine(lines, 'Company understanding confidence', predictionConfidenceLabel(interviewBrief.confidence_breakdown?.company_understanding_confidence))
   lines.push(`Overall confidence: ${predictionConfidenceLabel(interviewBrief.overall_confidence)}`)
 
   lines.push('')
   lines.push('Gap & Drill Plan')
   appendPredictionTextLine(lines, 'Readiness level', gapDrillPlan.readiness_level)
+  appendPredictionListLines(lines, 'Likely interviewer concerns', gapDrillPlan.likely_interviewer_concerns)
+  appendPredictionListLines(lines, 'What not to overclaim', gapDrillPlan.what_not_to_overclaim)
   appendPredictionListLines(lines, 'Questions without strong CV evidence', gapDrillPlan.questions_without_strong_cv_evidence)
   appendPredictionListLines(lines, 'Likely hard questions', gapDrillPlan.likely_hard_questions)
   appendPredictionListLines(lines, 'Missing company research items', gapDrillPlan.missing_company_research_items)
   appendPredictionListLines(lines, 'Stories to prepare', gapDrillPlan.stories_to_prepare)
   appendPredictionListLines(lines, 'Terms from JD to reuse', gapDrillPlan.terms_from_jd_to_reuse)
+  appendPredictionListLines(lines, 'Recommended follow-up questions', gapDrillPlan.recommended_followup_questions)
   appendPredictionMockPlanLines(lines, gapDrillPlan.mock_plan)
   appendPredictionListLines(lines, 'Final checklist before interview', gapDrillPlan.final_checklist_before_interview)
+
+  appendPredictionRichSection(lines, 'Company Dossier', row.company_dossier)
+  appendPredictionRichSection(lines, 'Interview Risk Map', row.interview_risk_map)
+  appendPredictionListLines(lines, 'Open unknowns', row.open_unknowns)
 
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n'
 }
@@ -1222,6 +1381,29 @@ function buildPredictionExportFilename(detail) {
   return `${parts.join(' - ') || 'interview_qa_export'}.txt`
 }
 
+function normalizePredictionFormSnapshot(detail) {
+  const row = detail || {}
+  const snapshot = row.input_snapshot && Object.keys(row.input_snapshot || {}).length ? row.input_snapshot : {}
+  const legacy = row.legacy_result_json || {}
+  const jobIds = Array.isArray(snapshot.job_ids) && snapshot.job_ids.length
+    ? snapshot.job_ids.join(', ')
+    : (String(row.job_id || legacy.job_id || '').trim())
+  const jdText = String(snapshot.jd_text || legacy.jd_text || '').trim()
+  return {
+    jobIds,
+    cvPath: String(snapshot.cv_path || 'input/full_doc_stlye.txt').trim() || 'input/full_doc_stlye.txt',
+    recentDays: String(snapshot.recent_days ?? 14),
+    limit: String(snapshot.limit ?? 5),
+    startAt: String(snapshot.start_at || ''),
+    companyName: String(snapshot.company_name || row.company || '').trim(),
+    companyWebsite: String(snapshot.company_website || row.company_website || '').trim(),
+    jdText,
+    jdFileName: jdText ? 'recall_snapshot.txt' : '',
+    force: Boolean(snapshot.force),
+    shutdownWhenCompleted: Boolean(snapshot.shutdown_when_completed),
+  }
+}
+
 function normalizePredictionDetail(detail) {
   const row = detail || {}
   const legacy = row.legacy_result_json || {}
@@ -1239,6 +1421,21 @@ function normalizePredictionDetail(detail) {
     ? row.source_summary
     : (legacy.source_summary || {})
   const metrics = row.metrics && Object.keys(row.metrics || {}).length ? row.metrics : (legacy.metrics || {})
+  const companyDossier = row.company_dossier && Object.keys(row.company_dossier || {}).length
+    ? row.company_dossier
+    : (legacy.company_dossier || {})
+  const inputSnapshot = row.input_snapshot && Object.keys(row.input_snapshot || {}).length
+    ? row.input_snapshot
+    : (legacy.input_snapshot || {})
+  const interviewRiskMap = row.interview_risk_map && Object.keys(row.interview_risk_map || {}).length
+    ? row.interview_risk_map
+    : (legacy.interview_risk_map || {})
+  const confidenceBreakdown = row.confidence_breakdown && Object.keys(row.confidence_breakdown || {}).length
+    ? row.confidence_breakdown
+    : (legacy.confidence_breakdown || {})
+  const openUnknowns = Array.isArray(row.open_unknowns) && row.open_unknowns.length
+    ? row.open_unknowns
+    : (Array.isArray(legacy.open_unknowns) ? legacy.open_unknowns : [])
   return {
     ...row,
     qa_pack: qaPack,
@@ -1246,6 +1443,15 @@ function normalizePredictionDetail(detail) {
     gap_drill_plan: gapDrillPlan,
     source_summary: sourceSummary,
     metrics,
+    company_dossier: companyDossier,
+    input_snapshot: inputSnapshot,
+    interview_risk_map: interviewRiskMap,
+    confidence_breakdown: confidenceBreakdown,
+    open_unknowns: openUnknowns,
+    reliability_state: String(row.reliability_state || confidenceBreakdown.reliability_state || legacy.reliability_state || '').trim().toLowerCase(),
+    supported_claim_rate: Number(row.supported_claim_rate || legacy.supported_claim_rate || metrics.supported_claim_rate || 0),
+    contradiction_count: Number(row.contradiction_count || legacy.contradiction_count || metrics.contradiction_count || 0),
+    fallback_used: Boolean(row.fallback_used || legacy.fallback_used || metrics.fallback_used),
   }
 }
 
@@ -1273,6 +1479,16 @@ function predictionStatusLabel(status) {
   return status
 }
 
+function predictionReliabilityLabel(value) {
+  const key = String(value || '').trim().toLowerCase()
+  if (!key) return '-'
+  if (key === 'ready') return 'Ready'
+  if (key === 'draft') return 'Draft'
+  if (key === 'insufficient_evidence') return 'Insufficient'
+  if (key === 'model_degraded') return 'Degraded'
+  return key
+}
+
 function predictionBadgeClass(kind, value) {
   const key = String(value || '').trim().toLowerCase()
   if (kind === 'status') {
@@ -1281,17 +1497,28 @@ function predictionBadgeClass(kind, value) {
     if (key === 'failed') return 'inline-badge inline-badge-warn'
     if (key === 'skipped') return 'inline-badge'
   }
+  if (kind === 'reliability') {
+    if (key === 'ready') return 'inline-badge'
+    if (key === 'draft') return 'inline-badge inline-badge-warn'
+    if (key === 'insufficient_evidence') return 'inline-badge inline-badge-warn'
+    if (key === 'model_degraded') return 'inline-badge inline-badge-warn'
+  }
   return 'inline-badge'
 }
 
 function PredictionSectionList({ title, items, emptyText }) {
-  const values = normalizePredictionArray(items)
+  const values = normalizePredictionRichItems(items)
   if (!values.length) return null
   return (
     <div className="prediction-section">
       <div className="prediction-section-title">{title}</div>
       <ul className="prediction-list">
-        {values.map((item, idx) => <li key={`${title}_${idx}`}>{item}</li>)}
+        {values.map((item, idx) => (
+          <li key={`${title}_${idx}`}>
+            <span>{item.text || '-'}</span>
+            {item.evidence_ids.length ? <span className="muted"> {" "}evidence: {item.evidence_ids.join(', ')}</span> : null}
+          </li>
+        ))}
       </ul>
     </div>
   )
@@ -2256,6 +2483,35 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
   const programmingLanguageOptions = (programmingLanguages || []).map((lang) => ({ label: lang, value: lang }))
   const rowsSorted = useMemo(() => sortRows(items, sort), [items, sort])
   const selectedSet = useMemo(() => new Set(selectedJobIds), [selectedJobIds])
+  const detailLabels = useMemo(() => ({
+    details: String(t.details || 'Details').trim() || 'Details',
+    company: String(t.company || 'Company').trim() || 'Company',
+    location: String(t.location || 'Location').trim() || 'Location',
+    workModel: String(t.workModel || 'Work Model').trim() || 'Work Model',
+    employmentType: String(t.employmentType || 'Employment Type').trim() || 'Employment Type',
+    programLanguage: String(t.programLanguage || 'Program Language').trim() || 'Program Language',
+    linkedinLink: String(t.linkedinLink || 'LinkedIn').trim() || 'LinkedIn',
+    postedDate: String(t.postedDate || 'Posted Date').trim() || 'Posted Date',
+    postedTimeText: String(t.postedTimeText || 'Posted Time').trim() || 'Posted Time',
+    estimatedFromText: String(t.estimatedFromText || 'estimated from posted text').trim() || 'estimated from posted text',
+    applied: String(t.applied || 'Applied').trim() || 'Applied',
+    response: String(t.response || 'Response').trim() || 'Response',
+    manualReview: String(t.manualReview || 'Manual Review').trim() || 'Manual Review',
+    priorityFlag: String(t.priorityFlag || 'Priority Flag').trim() || 'Priority Flag',
+    priorityNote: String(t.priorityNote || 'Priority Note').trim() || 'Priority Note',
+    fit: String(t.fit || 'Fit').trim() || 'Fit',
+    fitReason: String(t.fitReason || 'Fit Reason').trim() || 'Fit Reason',
+    firstSeen: String(t.firstSeen || 'First Seen').trim() || 'First Seen',
+    lastSeen: String(t.lastSeen || 'Last Seen').trim() || 'Last Seen',
+    jobRule: String(t.jobRule || 'Job Rule').trim() || 'Job Rule',
+    jobRuleDesc: String(t.jobRuleDesc || 'Use for one specific JD.').trim() || 'Use for one specific JD.',
+    companyRule: String(t.companyRule || 'Company Rule').trim() || 'Company Rule',
+    companyRuleDesc: String(t.companyRuleDesc || 'Use as default for all jobs from this company.').trim() || 'Use as default for all jobs from this company.',
+    effectiveRule: String(t.effectiveRule || 'Effective Rule').trim() || 'Effective Rule',
+    jobRuleHint: String(t.jobRuleHint || 'Job rule overrides company rule when both are set.').trim() || 'Job rule overrides company rule when both are set.',
+    jobOverride: String(t.jobOverride || 'No job override').trim() || 'No job override',
+    companyDefault: String(t.companyDefault || 'No company default').trim() || 'No company default',
+  }), [t])
   const generatedCvMap = useMemo(
     () => new Map((generatedCvItems || []).map((x) => [Number(x.job_id), x])),
     [generatedCvItems],
@@ -2626,36 +2882,36 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
           <div className="jobs-filter-grid">
             <label className="jobs-filter-field jobs-filter-search">
               <span>{t.searchPlaceholder || 'Search title/company'}</span>
-              <input placeholder={t.searchPlaceholder} value={filters.search} onChange={(e) => patchFilters({ search: e.target.value, offset: '0' })} />
+              <input placeholder={t.searchPlaceholder || 'Search title/company'} value={filters.search} onChange={(e) => patchFilters({ search: e.target.value, offset: '0' })} />
             </label>
             <label className="jobs-filter-field">
-              <span>{t.country}</span>
-              <CheckboxMultiSelect label={t.country} options={countryOptions} groups={countryGroups} selected={filters.countries} onChange={(v) => patchFilters({ countries: v, offset: '0' })} t={t} applyMode />
+              <span>{t.country || 'Country'}</span>
+              <CheckboxMultiSelect label={t.country || 'Country'} options={countryOptions} groups={countryGroups} selected={filters.countries} onChange={(v) => patchFilters({ countries: v, offset: '0' })} t={t} applyMode showLabelInSummary={false} />
             </label>
             <label className="jobs-filter-field">
               <span>{t.workModel || 'Work Model'}</span>
-              <CheckboxMultiSelect label={t.workModel || 'Work Model'} options={WORK_MODEL_OPTIONS} selected={filters.work_models} onChange={(v) => patchFilters({ work_models: v, offset: '0' })} t={t} applyMode />
+              <CheckboxMultiSelect label={t.workModel || 'Work Model'} options={WORK_MODEL_OPTIONS} selected={filters.work_models} onChange={(v) => patchFilters({ work_models: v, offset: '0' })} t={t} applyMode showLabelInSummary={false} />
             </label>
             <label className="jobs-filter-field">
               <span>{t.employmentType || 'Employment Type'}</span>
-              <CheckboxMultiSelect label={t.employmentType || 'Employment Type'} options={EMPLOYMENT_TYPE_OPTIONS} selected={filters.employment_types} onChange={(v) => patchFilters({ employment_types: v, offset: '0' })} t={t} applyMode />
+              <CheckboxMultiSelect label={t.employmentType || 'Employment Type'} options={EMPLOYMENT_TYPE_OPTIONS} selected={filters.employment_types} onChange={(v) => patchFilters({ employment_types: v, offset: '0' })} t={t} applyMode showLabelInSummary={false} />
             </label>
             <label className="jobs-filter-field">
-              <span>{t.programLanguage}</span>
-              <CheckboxMultiSelect label={t.programLanguage} options={programmingLanguageOptions} groups={programmingLanguageGroups} selected={filters.programming_languages} onChange={(v) => patchFilters({ programming_languages: v, offset: '0' })} t={t} includeGroupValue={false} applyMode />
+              <span>{t.programLanguage || 'Program Language'}</span>
+              <CheckboxMultiSelect label={t.programLanguage || 'Program Language'} options={programmingLanguageOptions} groups={programmingLanguageGroups} selected={filters.programming_languages} onChange={(v) => patchFilters({ programming_languages: v, offset: '0' })} t={t} includeGroupValue={false} applyMode showLabelInSummary={false} />
             </label>
             <label className="jobs-filter-field jobs-filter-compact">
-              <span>{t.postedWithinDays}</span>
+              <span>{t.postedWithinDays || 'Posted within (days)'}</span>
               <input
                 type="number"
                 min="0"
-                placeholder={t.postedWithinDays}
+                placeholder={t.postedWithinDays || 'Posted within (days)'}
                 value={filters.posted_within_days}
                 onChange={(e) => patchFilters({ posted_within_days: e.target.value, offset: '0' })}
               />
             </label>
             <label className="jobs-filter-field jobs-filter-compact">
-              <span>{t.postedDate}</span>
+              <span>{t.postedDate || 'Posted Date'}</span>
               <select
                 value={String(filters.sort_by || 'posted_date_desc')}
                 onChange={(e) => patchFilters({ sort_by: e.target.value, offset: '0' })}
@@ -2704,7 +2960,7 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
                 <option value="soft">{t.soft || 'Soft'}</option>
               </select>
             </label>
-            <button disabled={fitBusy} onClick={runEvaluateFit}>{fitBusy ? t.evaluating : t.evaluateFit}</button>
+            <button disabled={fitBusy} onClick={runEvaluateFit}>{fitBusy ? (t.evaluating || 'Evaluating...') : (t.evaluateFit || 'Evaluate Fit')}</button>
             <button disabled={!canGenerateSelected || cvBusy || deleteBusy} onClick={generateCvForSelected}>
               {cvBusyBatch ? (t.processingCv || 'Processing CV...') : (t.generateSelectedCv || 'Generate Selected CV')}
             </button>
@@ -2860,47 +3116,47 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
         )}
       </div>
 
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={`${t.details}: ${detail?.title || ''}`} t={t}>
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={`${detailLabels.details}: ${detail?.title || ''}`} t={t}>
         {detail && (
           <>
-            <p><b>{t.company}:</b> {detail.company}</p>
-            <p><b>{t.location}:</b> {detail.location}</p>
-            <p><b>{t.workModel || 'Work Model'}:</b> {detail.work_model || '-'} | <b>{t.employmentType || 'Employment Type'}:</b> {detail.employment_type || '-'}</p>
-            <p><b>{t.programLanguage}:</b> {detailProgrammingLanguage(detail) || '-'}</p>
+            <p><b>{detailLabels.company}:</b> {detail.company || '-'}</p>
+            <p><b>{detailLabels.location}:</b> {detail.location || '-'}</p>
+            <p><b>{detailLabels.workModel}:</b> {detail.work_model || '-'} | <b>{detailLabels.employmentType}:</b> {detail.employment_type || '-'}</p>
+            <p><b>{detailLabels.programLanguage}:</b> {detailProgrammingLanguage(detail) || '-'}</p>
             <p>
-              <b>{t.linkedinLink}:</b>{' '}
+              <b>{detailLabels.linkedinLink}:</b>{' '}
               {(detail.job_url_final || detail.job_url) ? (
                 <a href={detail.job_url_final || detail.job_url} target="_blank" rel="noreferrer">
                   {detail.job_url_final || detail.job_url}
                 </a>
               ) : '-'}
             </p>
-            <p><b>{t.postedDate}:</b> {detail.linkedin_posted_date || '-'} ({t.estimatedFromText})</p>
-            <p><b>{t.postedTimeText}:</b> {detailPostedText(detail) || '-'}</p>
-            <p><b>{t.applied}:</b> {detail.is_applied ? t.yes : t.no} | <b>{t.response}:</b> {detailResponseText(detail) || '-'}</p>
+            <p><b>{detailLabels.postedDate}:</b> {detail.linkedin_posted_date || '-'} ({detailLabels.estimatedFromText})</p>
+            <p><b>{detailLabels.postedTimeText}:</b> {detailPostedText(detail) || '-'}</p>
+            <p><b>{detailLabels.applied}:</b> {detail.is_applied ? t.yes : t.no} | <b>{detailLabels.response}:</b> {detailResponseText(detail) || '-'}</p>
             {isManualReviewJob(detail) ? (
-              <p><b>{t.manualReview || 'Manual Review'}:</b> {detail.manual_review_note || '-'}</p>
+              <p><b>{detailLabels.manualReview}:</b> {detail.manual_review_note || '-'}</p>
             ) : null}
             {getEffectivePriorityFlag(detail) ? (
-              <p><b>{t.priorityFlag || 'Priority Flag'}:</b> {priorityFlagLabel(detail.effective_priority_flag)} | <b>{t.priorityNote || 'Priority Note'}:</b> {detail.effective_priority_note || '-'}</p>
+              <p><b>{detailLabels.priorityFlag}:</b> {priorityFlagLabel(detail.effective_priority_flag)} | <b>{detailLabels.priorityNote}:</b> {detail.effective_priority_note || '-'}</p>
             ) : null}
-            <p><b>{t.fit}:</b> {detail.fit_score} ({detail.fit_status || t.notEvaluated})</p>
+            <p><b>{detailLabels.fit}:</b> {detail.fit_score} ({detail.fit_status || t.notEvaluated})</p>
             {renderFitPrimaryIssue(detail) ? (
               <p className="fit-primary-issue">{renderFitPrimaryIssue(detail)}</p>
             ) : null}
-            <p><b>{t.fitReason || 'Fit Reason'}:</b> {detail.fit_reason || '-'}</p>
-            <p><b>{t.firstSeen}:</b> {detail.first_seen_date} | <b>{t.lastSeen}:</b> {detail.last_seen_date}</p>
+            <p><b>{detailLabels.fitReason}:</b> {detail.fit_reason || '-'}</p>
+            <p><b>{detailLabels.firstSeen}:</b> {detail.first_seen_date || '-'} | <b>{detailLabels.lastSeen}:</b> {detail.last_seen_date || '-'}</p>
             <div className="priority-panel">
               <div className="priority-panel-row">
                 <div>
-                  <div className="priority-panel-title">{t.jobRule || 'Job Rule'}</div>
-                  <div className="muted">{t.jobRuleDesc || 'Use for one specific JD.'}</div>
+                  <div className="priority-panel-title">{detailLabels.jobRule}</div>
+                  <div className="muted">{detailLabels.jobRuleDesc}</div>
                 </div>
                 <select
                   value={String(detail.job_priority_flag || '')}
                   onChange={(e) => updateJobPriority(detail, e.target.value)}
                 >
-                  <option value="">{t.jobOverride || 'No job override'}</option>
+                  <option value="">{detailLabels.jobOverride}</option>
                   <option value="low_priority">{t.reviewLater || 'Review later'}</option>
                   <option value="manual_only">{t.manualOnly || 'Manual Only'}</option>
                   <option value="company_under_review">{t.companyUnderReview || 'Already under review at company'}</option>
@@ -2915,14 +3171,14 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
               <div className="muted">{priorityFlagDescription(detail.job_priority_flag, 'job')}</div>
               <div className="priority-panel-row">
                 <div>
-                  <div className="priority-panel-title">{t.companyRule || 'Company Rule'}</div>
-                  <div className="muted">{t.companyRuleDesc || 'Use as default for all jobs from this company.'}</div>
+                  <div className="priority-panel-title">{detailLabels.companyRule}</div>
+                  <div className="muted">{detailLabels.companyRuleDesc}</div>
                 </div>
                 <select
                   value={String(detail.company_priority_flag || '')}
                   onChange={(e) => updateCompanyPriority(detail, e.target.value)}
                 >
-                  <option value="">{t.companyDefault || 'No company default'}</option>
+                  <option value="">{detailLabels.companyDefault}</option>
                   <option value="low_priority">{t.reviewLater || 'Review later'}</option>
                   <option value="manual_only">{t.manualOnly || 'Manual Only'}</option>
                   <option value="company_under_review">{t.companyUnderReview || 'Already under review at company'}</option>
@@ -2935,10 +3191,10 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
               </div>
               <div className="muted">{priorityFlagDescription(detail.company_priority_flag, 'company')}</div>
               <div className="priority-effective">
-                <b>{t.effectiveRule || 'Effective Rule'}:</b> {priorityFlagLabel(detail.effective_priority_flag)}
+                <b>{detailLabels.effectiveRule}:</b> {priorityFlagLabel(detail.effective_priority_flag)}
                 {detail.effective_priority_note ? ` — ${detail.effective_priority_note}` : ''}
               </div>
-              <div className="muted">{t.jobRuleHint || 'Job rule overrides company rule when both are set.'}</div>
+              <div className="muted">{detailLabels.jobRuleHint}</div>
             </div>
             <div className="filters">
               {(generatedCvMap.get(Number(detail.id)) || cvItemFromPath(detail, detail.cv_source_path)) ? (
@@ -4205,6 +4461,8 @@ function InterviewQaPredictionResultsTab({ t }) {
   const gapDrillPlan = detail.gap_drill_plan || legacy.gap_drill_plan || {}
   const sourceSummary = detail.source_summary || legacy.source_summary || {}
   const metrics = detail.metrics || legacy.metrics || {}
+  const companyDossier = detail.company_dossier || legacy.company_dossier || {}
+  const interviewRiskMap = detail.interview_risk_map || legacy.interview_risk_map || {}
   const sourceDocuments = Array.isArray(sourceSummary.source_documents) ? sourceSummary.source_documents : []
   const externalSeedUrls = Array.isArray(sourceSummary.external_seed_urls) ? sourceSummary.external_seed_urls : []
   const questionCards = Array.isArray(qaPack.questions) ? qaPack.questions : []
@@ -4274,6 +4532,30 @@ function InterviewQaPredictionResultsTab({ t }) {
     }
   }
 
+  function recallPredictionToForm(detailRow) {
+    const next = normalizePredictionFormSnapshot(detailRow)
+    setPredictionForm((prev) => ({
+      ...prev,
+      ...next,
+    }))
+    setPredictionActionError('')
+    setPredictionActionMessage('Loaded previous prediction inputs. Edit and run again when ready.')
+    setDetailTab('qa_pack')
+  }
+
+  async function handleRecallPrediction(predictionId) {
+    const id = String(predictionId || '').trim()
+    if (!id) return
+    try {
+      const res = await api.interviewQaPredictionDetail(id)
+      const normalized = normalizePredictionDetail(res)
+      setPredictionDetail(normalized)
+      recallPredictionToForm(normalized)
+    } catch (error) {
+      setPredictionActionError(String(error?.message || error))
+    }
+  }
+
   function handleDownloadPredictionTxt() {
     if (!predictionDetail) return
     const filename = buildPredictionExportFilename(detail)
@@ -4298,6 +4580,7 @@ function InterviewQaPredictionResultsTab({ t }) {
     args.push('--limit', String(limit))
     if (predictionForm.force) args.push('--force')
     if (predictionForm.shutdownWhenCompleted) args.push('--shutdown-when-completed')
+    const jdText = String(predictionForm.jdText || '').trim()
     if (jdText) {
       const encoded = encodeBase64Text(jdText)
       if (encoded) args.push('--jd-text-base64', encoded)
@@ -4379,7 +4662,7 @@ function InterviewQaPredictionResultsTab({ t }) {
         ) : (
           <div className="prediction-table-wrap">
             <table className="prediction-table">
-              <thead><tr><th>Predicted (GMT+7)</th><th>Company</th><th>Job title</th><th>Mode</th><th>Status</th><th>Confidence</th><th>Questions</th><th>Sources</th><th>Action</th></tr></thead>
+              <thead><tr><th>Predicted (GMT+7)</th><th>Company</th><th>Job title</th><th>Mode</th><th>Status</th><th>Reliability</th><th>Confidence</th><th>Questions</th><th>Sources</th><th>Action</th></tr></thead>
               <tbody>
                 {predictionRows.map((row) => (
                   <tr key={row.prediction_id} className="prediction-row" onClick={() => openPredictionDetail(row.prediction_id)}>
@@ -4388,10 +4671,14 @@ function InterviewQaPredictionResultsTab({ t }) {
                     <td className="prediction-title-cell">{String(row.title || '-') || '-'}</td>
                     <td><span className="inline-badge">{predictionModeLabel(row.mode)}</span></td>
                     <td><span className={predictionBadgeClass('status', row.status)}>{predictionStatusLabel(row.status)}</span></td>
+                    <td><span className={predictionBadgeClass('reliability', row.reliability_state)}>{predictionReliabilityLabel(row.reliability_state)}</span></td>
                     <td>{predictionConfidenceLabel(row.overall_confidence)}</td>
                     <td>{Number(row.question_count || 0)}</td>
                     <td>{Number(row.source_document_count || 0)}</td>
-                    <td><button className="link-btn" onClick={(event) => { event.stopPropagation(); openPredictionDetail(row.prediction_id) }}>View</button></td>
+                    <td>
+                      <button className="link-btn" type="button" onClick={(event) => { event.stopPropagation(); openPredictionDetail(row.prediction_id) }}>View</button>
+                      <button className="link-btn" type="button" onClick={(event) => { event.stopPropagation(); handleRecallPrediction(row.prediction_id) }}>Recall/Edit</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -4405,7 +4692,12 @@ function InterviewQaPredictionResultsTab({ t }) {
         onClose={() => setPredictionDetailOpen(false)}
         title={detail.title ? `${detail.title} · ${detail.company || 'Interview Q&A'}` : 'Interview Prediction'}
         t={t}
-        actions={<button type="button" onClick={handleDownloadPredictionTxt} disabled={!predictionDetail}>Download TXT</button>}
+        actions={
+          <div className="modal-head-actions">
+            <button type="button" onClick={() => { recallPredictionToForm(detail); setPredictionDetailOpen(false) }} disabled={!predictionDetail}>Recall/Edit</button>
+            <button type="button" onClick={handleDownloadPredictionTxt} disabled={!predictionDetail}>Download TXT</button>
+          </div>
+        }
       >
         {predictionDetailLoading ? (
           <div className="muted">Loading prediction detail...</div>
@@ -4423,11 +4715,18 @@ function InterviewQaPredictionResultsTab({ t }) {
                 <div><span className="muted">Predicted:</span> {formatGmt7(detail.predicted_at, 'en')}</div>
                 <div><span className="muted">Mode:</span> {predictionModeLabel(detail.mode)}</div>
                 <div><span className="muted">Status:</span> <span className={predictionBadgeClass('status', detail.status)}>{predictionStatusLabel(detail.status)}</span></div>
+                <div><span className="muted">Reliability:</span> <span className={predictionBadgeClass('reliability', detail.reliability_state)}>{predictionReliabilityLabel(detail.reliability_state)}</span></div>
                 <div><span className="muted">Confidence:</span> {predictionConfidenceLabel(detail.overall_confidence)}</div>
                 <div><span className="muted">Questions:</span> {Number(detail.question_count || 0)}</div>
                 <div><span className="muted">Sources:</span> {Number(detail.source_document_count || 0)}</div>
               </div>
             </div>
+            {detail.fallback_used ? (
+              <div className="prediction-section">
+                <div className="prediction-section-title">Fallback note</div>
+                <div className="prediction-text">Fallback mode was used for this run, so the pack may contain fewer questions and more conservative answers.</div>
+              </div>
+            ) : null}
             <div className="prediction-tabs">
               <button className={`subtab-btn ${detailTab === 'qa_pack' ? 'active' : ''}`} onClick={() => setDetailTab('qa_pack')}>Q&A Pack</button>
               <button className={`subtab-btn ${detailTab === 'interview_brief' ? 'active' : ''}`} onClick={() => setDetailTab('interview_brief')}>Interview Brief</button>
@@ -4441,13 +4740,24 @@ function InterviewQaPredictionResultsTab({ t }) {
                     {questionCards.map((question, idx) => (
                       <div key={`${question.id || idx}`} className="prediction-question-card">
                         <div className="prediction-question-title">{idx + 1}. {question.question || '-'}</div>
-                        {question.intent ? <PredictionTextSection title="Intent" value={question.intent} /> : null}
+                        {question.intent_key || question.intent ? <PredictionTextSection title="Intent" value={question.intent_key || question.intent} /> : null}
+                        {question.proof_bundle_id ? <PredictionTextSection title="Proof bundle" value={`${question.proof_bundle_id}${question.bundle_topic ? ` | ${question.bundle_topic}` : ''}`} /> : null}
+                        {question.dedup_status ? <PredictionTextSection title="Dedup status" value={question.dedup_status} /> : null}
+                        {Number.isFinite(Number(question.proof_bundle_uniqueness_score)) ? <PredictionTextSection title="Proof bundle uniqueness" value={predictionConfidenceLabel(question.proof_bundle_uniqueness_score)} /> : null}
+                        {Number.isFinite(Number(question.answer_uniqueness_score)) ? <PredictionTextSection title="Answer uniqueness" value={predictionConfidenceLabel(question.answer_uniqueness_score)} /> : null}
                         {question.why_this_question ? <PredictionTextSection title="Why this question" value={question.why_this_question} /> : null}
+                        {question.why_this_matters_for_this_company ? <PredictionTextSection title="Why this matters for this company" value={question.why_this_matters_for_this_company} /> : null}
                         {question.answer_short_30s ? <PredictionTextSection title="Answer short 30s" value={question.answer_short_30s} /> : null}
                         {question.answer_full_2m ? <PredictionTextSection title="Answer full 2m" value={question.answer_full_2m} /> : null}
                         <PredictionSectionList title="CV evidence" items={question.cv_evidence} />
                         <PredictionSectionList title="JD evidence" items={question.jd_evidence} />
                         <PredictionSectionList title="Company evidence" items={question.company_evidence} />
+                        <PredictionSectionList title="Proof you have from CV" items={question.proof_you_have_from_cv} />
+                        <PredictionSectionList title="Proof from JD" items={question.proof_from_jd} />
+                        <PredictionSectionList title="Proof from company" items={question.proof_from_company} />
+                        <PredictionSectionList title="Supported claims" items={question.supported_claims} />
+                        <PredictionSectionList title="Claims to avoid" items={question.claims_to_avoid} />
+                        <PredictionSectionList title="Weak claims" items={question.weak_claims} />
                         <PredictionSectionList title="Follow-up questions" items={question.follow_ups} />
                         <PredictionSectionList title="Risk notes" items={question.risk_notes} />
                         <div className="prediction-question-foot"><span className="inline-badge">Confidence: {String(question.confidence || '-') || '-'}</span></div>
@@ -4460,23 +4770,44 @@ function InterviewQaPredictionResultsTab({ t }) {
                   <div className="prediction-detail-section">
                     <PredictionTextSection title="Role summary" value={interviewBrief.role_summary} />
                     <PredictionTextSection title="Company snapshot" value={interviewBrief.company_snapshot} />
+                    <PredictionTextSection title="Company positioning" value={interviewBrief.company_positioning} />
+                    <PredictionTextSection title="What they really sell" value={interviewBrief.what_they_really_sell} />
                     <PredictionSectionList title="Main products or services" items={interviewBrief.main_products_or_services} />
                     <PredictionSectionList title="Target customers" items={interviewBrief.target_customers} />
+                    <PredictionTextSection title="Delivery model" value={interviewBrief.delivery_model} />
+                    <PredictionSectionList title="Public proof or case studies" items={interviewBrief.public_proof_or_case_studies} />
+                    <PredictionTextSection title="Team or interviewer lens" value={interviewBrief.team_or_interviewer_lens} />
+                    <PredictionTextSection title="Why this role exists now" value={interviewBrief.why_this_role_exists_now} />
                     <PredictionSectionList title="Market signals from JD" items={interviewBrief.market_signals_from_jd} />
                     <PredictionSectionList title="Top strengths from CV" items={interviewBrief.top_strengths_from_cv} />
                     <PredictionSectionList title="Top 5 must-say points" items={interviewBrief.top_5_must_say_points} />
                     <PredictionSectionList title="Questions to ask interviewer" items={interviewBrief.questions_to_ask_interviewer} />
+                    <PredictionSectionList title="Open unknowns" items={interviewBrief.open_unknowns || detail.open_unknowns} />
+                    <div className="prediction-section"><div className="prediction-section-title">Confidence breakdown</div><div className="prediction-text">evidence: {predictionConfidenceLabel(detail.confidence_breakdown?.evidence_confidence)} | role fit: {predictionConfidenceLabel(detail.confidence_breakdown?.role_fit_confidence)} | company understanding: {predictionConfidenceLabel(detail.confidence_breakdown?.company_understanding_confidence)} | interview readiness: {predictionConfidenceLabel(detail.confidence_breakdown?.interview_readiness)} | state: {predictionReliabilityLabel(detail.confidence_breakdown?.reliability_state)}</div></div>
                     <div className="prediction-section"><div className="prediction-section-title">Overall confidence</div><div className="prediction-text">{predictionConfidenceLabel(interviewBrief.overall_confidence)}</div></div>
                   </div>
                 )
               ) : Object.keys(gapDrillPlan || {}).length === 0 ? <div className="muted">Legacy result does not include drill plan yet.</div> : (
                 <div className="prediction-detail-section">
                   <div className="prediction-section"><div className="prediction-section-title">Readiness level</div><div className="prediction-text">{String(gapDrillPlan.readiness_level || '-') || '-'}</div></div>
+                  <PredictionSectionList title="Likely interviewer concerns" items={gapDrillPlan.likely_interviewer_concerns} />
+                  <PredictionSectionList title="What not to overclaim" items={gapDrillPlan.what_not_to_overclaim} />
                   <PredictionSectionList title="Questions without strong CV evidence" items={gapDrillPlan.questions_without_strong_cv_evidence} />
                   <PredictionSectionList title="Likely hard questions" items={gapDrillPlan.likely_hard_questions} />
                   <PredictionSectionList title="Missing company research items" items={gapDrillPlan.missing_company_research_items} />
                   <PredictionSectionList title="Stories to prepare" items={gapDrillPlan.stories_to_prepare} />
                   <PredictionSectionList title="Terms from JD to reuse" items={gapDrillPlan.terms_from_jd_to_reuse} />
+                  <PredictionSectionList title="Recommended follow-up questions" items={gapDrillPlan.recommended_followup_questions} />
+                  <div className="prediction-section">
+                    <div className="prediction-section-title">Interview risk map</div>
+                    <PredictionSectionList title="Likely interviewer concerns" items={interviewRiskMap.likely_interviewer_concerns} />
+                    <PredictionSectionList title="Likely hard questions" items={interviewRiskMap.likely_hard_questions} />
+                    <PredictionSectionList title="What to prove from CV" items={interviewRiskMap.what_to_prove_from_cv} />
+                    <PredictionSectionList title="What not to overclaim" items={interviewRiskMap.what_not_to_overclaim} />
+                    <PredictionSectionList title="Questions to verify live" items={interviewRiskMap.company_questions_to_verify_live} />
+                    <PredictionSectionList title="Missing research items" items={interviewRiskMap.missing_research_items} />
+                    <PredictionSectionList title="Recommended follow-up questions" items={interviewRiskMap.recommended_followup_questions} />
+                  </div>
                   {Array.isArray(gapDrillPlan.mock_plan) && gapDrillPlan.mock_plan.length > 0 ? (
                     <div className="prediction-section">
                       <div className="prediction-section-title">Mock plan</div>
@@ -4493,9 +4824,25 @@ function InterviewQaPredictionResultsTab({ t }) {
               <summary>Sources & Metrics</summary>
               <div className="prediction-sources-body">
                 <div className="prediction-section"><div className="prediction-section-title">Counts</div><div className="prediction-text">source documents: {Number(sourceSummary.source_document_count || 0)} | external seed urls: {Number(sourceSummary.external_seed_url_count || 0)}</div></div>
+                <div className="prediction-section"><div className="prediction-section-title">Reliability</div><div className="prediction-text">state: {predictionReliabilityLabel(detail.reliability_state)} | supported claim rate: {predictionConfidenceLabel(detail.supported_claim_rate)} | contradiction count: {Number(detail.contradiction_count || 0)} | fallback used: {detail.fallback_used ? 'yes' : 'no'}</div></div>
+                <div className="prediction-section"><div className="prediction-section-title">Confidence breakdown</div><div className="prediction-text">evidence: {predictionConfidenceLabel(detail.confidence_breakdown?.evidence_confidence)} | role fit: {predictionConfidenceLabel(detail.confidence_breakdown?.role_fit_confidence)} | company understanding: {predictionConfidenceLabel(detail.confidence_breakdown?.company_understanding_confidence)} | interview readiness: {predictionConfidenceLabel(detail.confidence_breakdown?.interview_readiness)} | state: {predictionReliabilityLabel(detail.confidence_breakdown?.reliability_state)}</div></div>
+                <PredictionSectionList title="Open unknowns" items={detail.open_unknowns} />
+                <div className="prediction-section">
+                  <div className="prediction-section-title">Company dossier</div>
+                  <PredictionTextSection title="Company positioning" value={companyDossier.company_positioning?.summary} />
+                  <PredictionTextSection title="Services or products" value={companyDossier.services_or_products?.summary} />
+                  <PredictionSectionList title="Services items" items={companyDossier.services_or_products?.items} />
+                  <PredictionTextSection title="Customers and industries" value={companyDossier.customers_and_industries?.summary} />
+                  <PredictionSectionList title="Customers items" items={companyDossier.customers_and_industries?.items} />
+                  <PredictionTextSection title="Delivery model and proof" value={companyDossier.delivery_model_and_proof?.summary} />
+                  <PredictionSectionList title="Case studies" items={companyDossier.delivery_model_and_proof?.case_studies} />
+                  <PredictionTextSection title="Team and interviewer lens" value={companyDossier.team_and_interviewer_lens?.summary} />
+                  <PredictionTextSection title="Role specific context" value={companyDossier.role_specific_context?.summary} />
+                  <PredictionSectionList title="Open unknowns" items={companyDossier.open_unknowns || detail.open_unknowns} />
+                </div>
                 {externalSeedUrls.length > 0 ? <div className="prediction-section"><div className="prediction-section-title">External seed URLs</div><ul className="prediction-list">{externalSeedUrls.map((url) => <li key={url}><a href={url} target="_blank" rel="noreferrer">{url}</a></li>)}</ul></div> : null}
                 {sourceDocuments.length > 0 ? <div className="prediction-section"><div className="prediction-section-title">Source documents</div><ul className="prediction-list">{sourceDocuments.map((doc, idx) => <li key={`${doc.url || doc.title || idx}`}><span className="muted">{String(doc.kind || 'payload')}</span>{' '}{doc.url ? <a href={doc.url} target="_blank" rel="noreferrer">{doc.title || doc.url}</a> : (doc.title || doc.url || '-')}</li>)}</ul></div> : null}
-                <div className="prediction-section"><div className="prediction-section-title">Metrics</div><div className="prediction-text">question_count: {Number(metrics.question_count || 0)} | prompt_chars: {Number(metrics.prompt_chars || 0)} | generate_total_ms: {Number(metrics.generate_total_ms || 0)} | vet_total_ms: {Number(metrics.vet_total_ms || 0)} | overall_confidence: {predictionConfidenceLabel(metrics.overall_confidence)}</div></div>
+                <div className="prediction-section"><div className="prediction-section-title">Metrics</div><div className="prediction-text">question_count: {Number(metrics.question_count || 0)} | prompt_chars: {Number(metrics.prompt_chars || 0)} | generate_total_ms: {Number(metrics.generate_total_ms || 0)} | vet_total_ms: {Number(metrics.vet_total_ms || 0)} | answer_dedup_dropped_count: {Number(metrics.answer_dedup_dropped_count || 0)} | unique_intent_count: {Number(metrics.unique_intent_count || 0)} | unique_proof_bundle_count: {Number(metrics.unique_proof_bundle_count || 0)} | overall_confidence: {predictionConfidenceLabel(metrics.overall_confidence)}</div></div>
               </div>
             </details>
           </div>
@@ -4629,14 +4976,14 @@ function LearningQuizTab({ t, lang }) {
           </label>
         </div>
         <div className="quiz-toolbar">
-          <div className="subtabs">
-            <button className={`subtab-btn ${subTab === 'quiz' ? 'active' : ''}`} onClick={() => setSubTab('quiz')}>
+          <div className="subtabs" role="tablist" aria-label="Learning Quiz sections">
+            <button type="button" role="tab" aria-selected={subTab === 'quiz'} data-testid="learning-tab-quiz" className={`subtab-btn ${subTab === 'quiz' ? 'active' : ''}`} onClick={() => setSubTab('quiz')}>
               {t.learningQuiz}
             </button>
-            <button className={`subtab-btn ${subTab === 'knowledge' ? 'active' : ''}`} onClick={() => setSubTab('knowledge')}>
+            <button type="button" role="tab" aria-selected={subTab === 'knowledge'} data-testid="learning-tab-knowledge" className={`subtab-btn ${subTab === 'knowledge' ? 'active' : ''}`} onClick={() => setSubTab('knowledge')}>
               {t.knowledgeTab || 'Knowledge'}
             </button>
-            <button className={`subtab-btn ${subTab === 'interview_qa' ? 'active' : ''}`} onClick={() => setSubTab('interview_qa')}>
+            <button type="button" role="tab" aria-selected={subTab === 'interview_qa'} data-testid="learning-tab-interview-qa" className={`subtab-btn ${subTab === 'interview_qa' ? 'active' : ''}`} onClick={() => setSubTab('interview_qa')}>
               {t.interviewQaTab || 'Interview Q&A'}
             </button>
           </div>
@@ -4793,6 +5140,16 @@ function LogViewerPage() {
         setLastLoadedAt(new Date().toISOString())
       } catch (err) {
         if (cancelled) return
+        const fallback = runId ? await api.runDetail(runId).catch(() => null) : null
+        if (cancelled) return
+        const fallbackText = buildRunLogFallbackText(fallback)
+        if (fallbackText) {
+          setContent(fallbackText)
+          setError('')
+          setStatus('fallback')
+          setLastLoadedAt(new Date().toISOString())
+          return
+        }
         setError(String(err?.message || err || 'Failed to load log'))
         setStatus('error')
       }
@@ -4974,7 +5331,6 @@ export {
   ACTIVE_TAB_STATE_KEY,
   readStoredState,
   writeStoredState,
-  i18n,
   DashboardTab,
   JobsTab,
   AnalyticsTab,

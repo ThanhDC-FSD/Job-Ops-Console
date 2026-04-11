@@ -102,6 +102,9 @@ flowchart TD
     D --> D5[Interview Q&A ưu tiên crawl nhẹ rồi mới dùng Qwen]
     D --> D6[CV preview trả cả generated paths và alias path ngắn cho UI]
     D --> D7[Details modal dùng normalized fields với fallback hiển thị]
+    D --> D7A[Jobs filter labels and multi-select summaries use safe fallback text]
+    D --> D7B[Jobs dropdowns close on outside click and avoid overlap with tighter width rules]
+    D --> D7C[Job detail modal labels use safe fallback text to avoid undefined rows]
     D --> D8[Empty preview paths không còn bị coi nhầm là existing files]
     D --> D9[PDF fallback được tạo khi docx2pdf fail]
     D --> D10[Interview QA runtime now uses modular package under scripts/python/interview_qa]
@@ -118,6 +121,7 @@ flowchart TD
     D15 --> D15B[URLs inside JD text are collected as extra seeds]
     D15 --> D15C[Recent days and Max jobs only scope DB job loading]
     D --> D17[Run controls separate checkpoint pause from hard stop]
+    D --> D17A[run_job_ops_all bat opens backend and frontend windows minimized on restart]
     D --> D18[Company crawl adds a lightweight resolve_company phase before extraction]
     D --> D19[Company crawl reuses the same extract fit validation and DB pipeline after URL resolution]
 
@@ -149,3 +153,19 @@ flowchart TD
     C7 --> C7A[List predictions]
     C7 --> C7B[Prediction detail]
     C7 --> C7C[By-run lookup]
+%% 2026-04-10 extension for predict_interview_qa
+%% New additive outputs: company_dossier, interview_risk_map, confidence_breakdown, reliability_state.
+%% The existing three-tab UI and SQLite-backed prediction table remain unchanged.
+%% Lightweight crawl stays same-domain first, with safe caps and no JS/PDF default.
+%% The Interview Q&A detail view renders company_dossier and interview_risk_map from normalized payloads when available.
+%% Prediction rows expose Recall/Edit, which reloads stored input snapshot data when available so operators can edit and rerun a prior submission.
+%% Automation run logs are created early, and log viewer fallback uses stored run detail when the file path is stale.
+%% Interview crawl canonicalizes www/non-www same-domain matching to keep redirecting company sites in the same coverage bucket.
+%% Generation prompt carries dossier summaries plus page titles and URLs to strengthen company understanding when multiple public pages are available.
+%% 2026-04-11 update: date-triggered pending runs and schedule overrides now use a short misfire grace window so minor sync delay does not drop queued runs.
+%% 2026-04-11 update: predict_interview_qa now defaults to a shorter LLM timeout so unresponsive local model calls fail fast and fall back sooner.
+%% 2026-04-11 update: predict_interview_qa now synthesizes a grounded heuristic payload on model timeout so the run can complete without a second blocking vet call.
+%% 2026-04-11 update: the generation prompt is compacted to reduce token pressure and lower Ollama latency in the hot path.
+%% 2026-04-11 update: predict_interview_qa now uses a 20-second model timeout with no retry loop so fallback activates quickly instead of compounding latency.
+%% 2026-04-11 update: predict_interview_qa now separates intent and proof bundles before generation so the final pack keeps one interview angle per question when possible.
+%% 2026-04-11 update: a rule-based dedup pass drops repeated answer skeletons and moves low-uniqueness questions into gap/drill items instead of persisting template-like duplicates.

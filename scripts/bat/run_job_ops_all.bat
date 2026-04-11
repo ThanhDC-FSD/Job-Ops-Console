@@ -114,12 +114,12 @@ goto :eof
 
 :start_backend
 echo [INFO] Opening backend terminal window...
-start "%BACKEND_TITLE%" cmd /k "title %BACKEND_TITLE% && cd /d "%PROJECT_ROOT%" && call "%BACKEND_BAT%""
+start "%BACKEND_TITLE%" /min cmd /k "title %BACKEND_TITLE% && cd /d "%PROJECT_ROOT%" && call "%BACKEND_BAT%""
 goto :eof
 
 :start_frontend
 echo [INFO] Opening frontend terminal window...
-start "%FRONTEND_TITLE%" cmd /k "title %FRONTEND_TITLE% && cd /d "%PROJECT_ROOT%" && call "%FRONTEND_BAT%""
+start "%FRONTEND_TITLE%" /min cmd /k "title %FRONTEND_TITLE% && cd /d "%PROJECT_ROOT%" && call "%FRONTEND_BAT%""
 goto :eof
 
 :usage
