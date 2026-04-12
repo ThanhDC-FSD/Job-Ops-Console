@@ -180,8 +180,9 @@ flowchart TD
     D --> D20C[External facts are cached in memory for 6 hours]
     D --> D20D[Stale market context returns cached data immediately and refreshes in background]
     D --> D20E[UI renders local trend cards first and fills source-backed explanations after]
-    D --> D20F[Qwen lens runs on a compact trend snapshot and stays off the chart hot path]
-    D --> D20G[Qwen fallback keeps deterministic notes when the local model is unavailable]
+    D --> D20F[Qwen lens is precomputed nightly and stored in SQLite snapshots]
+    D --> D20G[Page load reads the stored snapshot and does not call Qwen in the request path]
+    D --> D20H[Missing snapshots fall back to deterministic notes until the nightly job materializes them]
 %% 2026-04-10 extension for predict_interview_qa
 %% New additive outputs: company_dossier, interview_risk_map, confidence_breakdown, reliability_state.
 %% The existing three-tab UI and SQLite-backed prediction table remain unchanged.
@@ -201,6 +202,7 @@ flowchart TD
 %% 2026-04-12 update: Reposts Analytics now includes Stack Trends, which classifies jobs into stack groups and surfaces crawl recommendations for thin buckets.
 %% 2026-04-12 update: Stack Trends reuses the same cached external source pattern as Language Trends so broader world context stays off the hot path.
 %% 2026-04-12 update: stale external market context now returns cached data immediately and refreshes in the background instead of blocking the analytics chart.
+%% 2026-04-12 update: trend AI snapshots are now refreshed nightly and persisted to SQLite so page load only reads the DB snapshot.
 
     B4E[Stack Trends]
     B4E --> B4E1[90-day stack group trend lines]
@@ -208,5 +210,5 @@ flowchart TD
     B4E --> B4E3[Country drill-back into Jobs]
     B4E --> B4E4[External market context cards]
     B4E --> B4E5[Crawl recommendations for thin buckets]
-    B4E --> B4E6[Qwen lens expands the stack thesis across economic social policy and geopolitical dimensions]
+    B4E --> B4E6[Qwen lens is refreshed at night and read from SQLite on page load]
     B4E --> B4E7[Crawl hints identify which missing evidence would strengthen the stack story]

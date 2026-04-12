@@ -26,6 +26,7 @@ from app.logging_setup import clear_logs_directory, setup_logging
 from app.repositories.analytics_repository import AnalyticsRepository
 from app.repositories.database import Database
 from app.repositories.fit_repository import FitRepository
+from app.repositories.interview_qa_prediction_repository import InterviewQaPredictionRepository
 from app.repositories.learning_repository import LearningRepository
 from app.repositories.job_repository import JobRepository
 from app.repositories.meta_repository import MetaRepository
@@ -49,16 +50,23 @@ def create_app() -> FastAPI:
     meta_repo = MetaRepository(db)
     meta_repo.ensure_app_tables(run_maintenance=False)
     meta_repo.seed_default_schedule_if_empty()
+    meta_repo.ensure_generated_artifact_repair_schedule()
+    meta_repo.ensure_garbage_cleanup_schedule()
 
     job_service = JobService(JobRepository(db))
     analytics_service = AnalyticsService(AnalyticsRepository(db))
     fit_service = FitService(FitRepository(db))
     cv_rewrite_service = CvRewriteService(PROJECT_ROOT)
+    interview_qa_predictions = InterviewQaPredictionRepository(db)
     automation_service = AutomationService(ScheduleRepository(db), fit_service=fit_service)
     learning_service = LearningService(LearningRepository(db), ScheduleRepository(db))
     learning_service.ensure_seed_if_empty(seed_path=PROJECT_ROOT / "learning_plan.md")
     learning_service.ensure_default_job(enqueue_if_empty=True)
-    scheduler_runtime = SchedulerRuntime(automation_service, learning_service=learning_service)
+    scheduler_runtime = SchedulerRuntime(
+        automation_service,
+        analytics_service=analytics_service,
+        learning_service=learning_service,
+    )
 
     app = FastAPI(title="LinkedIn Job Ops API", version="1.0.0")
 
@@ -146,7 +154,7 @@ def create_app() -> FastAPI:
     app.include_router(build_job_router(job_service))
     app.include_router(build_analytics_router(analytics_service))
     app.include_router(build_automation_router(automation_service, fit_service, cv_rewrite_service, job_service, scheduler_runtime))
-    app.include_router(build_learning_router(learning_service))
+    app.include_router(build_learning_router(learning_service, interview_qa_predictions))
     app.include_router(build_local_llm_router())
 
     if APP_ENV == "dev" or DIAGNOSTICS:

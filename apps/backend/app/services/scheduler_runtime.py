@@ -7,17 +7,22 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.date import DateTrigger
 
+from app.services.analytics_service import AnalyticsService
 from app.services.automation_service import AutomationService
 from app.services.learning_service import LearningService
 
 
 class SchedulerRuntime:
+    _DATE_JOB_MISFIRE_GRACE_SECONDS = 60
+
     def __init__(
         self,
         automation_service: AutomationService,
+        analytics_service: AnalyticsService | None = None,
         learning_service: LearningService | None = None,
     ) -> None:
         self.automation_service = automation_service
+        self.analytics_service = analytics_service
         self.learning_service = learning_service
         self.scheduler = BackgroundScheduler(timezone="UTC")
         self.logger = logging.getLogger("job_ops.scheduler")
@@ -41,6 +46,7 @@ class SchedulerRuntime:
                 or job.id.startswith("schedule-override:")
                 or job.id.startswith("action-run:")
                 or job.id.startswith("learning-schedule:")
+                or job.id.startswith("analytics-trend-ai:")
             ):
                 self.scheduler.remove_job(job.id)
                 removed += 1
@@ -90,8 +96,7 @@ class SchedulerRuntime:
                 args=[override_id],
                 id=f"schedule-override:{override_id}",
                 replace_existing=True,
-                max_instances=1,
-                coalesce=True,
+                **self._date_job_kwargs(),
             )
             override_jobs += 1
 
@@ -115,8 +120,7 @@ class SchedulerRuntime:
                 args=[run_id],
                 id=f"action-run:{run_id}",
                 replace_existing=True,
-                max_instances=1,
-                coalesce=True,
+                **self._date_job_kwargs(),
             )
             action_run_jobs += 1
 
@@ -128,6 +132,7 @@ class SchedulerRuntime:
             action_run_jobs,
         )
         self._ensure_idle_sync_job()
+        self._ensure_trend_ai_refresh_job()
         # Learning ETL now runs via automation schedules (pipeline_type=learning_etl).
 
     def _ensure_idle_sync_job(self) -> None:
@@ -140,5 +145,25 @@ class SchedulerRuntime:
             max_instances=1,
             coalesce=True,
         )
+
+    def _ensure_trend_ai_refresh_job(self) -> None:
+        if self.analytics_service is None:
+            return
+        self.scheduler.add_job(
+            self.analytics_service.refresh_trend_ai_snapshots,
+            trigger=CronTrigger(hour=1, minute=10, timezone="Asia/Ho_Chi_Minh"),
+            id="analytics-trend-ai:nightly-refresh",
+            replace_existing=True,
+            max_instances=1,
+            coalesce=True,
+        )
+
+    def _date_job_kwargs(self) -> dict[str, int | bool]:
+        # Date-triggered runs are time-sensitive, but the backend can sync jobs a few seconds late on startup.
+        return {
+            "misfire_grace_time": self._DATE_JOB_MISFIRE_GRACE_SECONDS,
+            "max_instances": 1,
+            "coalesce": True,
+        }
 
     # NOTE: learning queue processor removed to avoid continuous background load.

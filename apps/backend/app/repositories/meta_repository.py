@@ -49,6 +49,21 @@ class MetaRepository:
                     UNIQUE(job_post_id, cv_profile)
                 );
 
+                CREATE TABLE IF NOT EXISTS analytics_trend_ai_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    cache_key TEXT NOT NULL UNIQUE,
+                    trend_kind TEXT NOT NULL,
+                    summary_json TEXT NOT NULL,
+                    result_json TEXT NOT NULL,
+                    model TEXT NOT NULL DEFAULT '',
+                    source TEXT NOT NULL DEFAULT 'nightly',
+                    cache_state TEXT NOT NULL DEFAULT 'db',
+                    generated_at TEXT NOT NULL,
+                    expires_at TEXT NOT NULL,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
                 CREATE TABLE IF NOT EXISTS automation_schedules (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     name TEXT NOT NULL,
@@ -92,9 +107,60 @@ class MetaRepository:
                 );
 
                 CREATE INDEX IF NOT EXISTS ix_fit_job_post_id ON job_fit_scores(job_post_id);
+                CREATE INDEX IF NOT EXISTS ix_analytics_trend_ai_snapshots_kind_generated
+                    ON analytics_trend_ai_snapshots(trend_kind, generated_at DESC, id DESC);
+                CREATE INDEX IF NOT EXISTS ix_analytics_trend_ai_snapshots_expires
+                    ON analytics_trend_ai_snapshots(expires_at);
                 CREATE INDEX IF NOT EXISTS ix_automation_runs_schedule ON automation_runs(schedule_id, started_at DESC);
                 CREATE INDEX IF NOT EXISTS ix_automation_schedule_overrides_schedule
                     ON automation_schedule_overrides(schedule_id, status, override_run_at);
+
+                CREATE TABLE IF NOT EXISTS interview_qa_predictions (
+                    prediction_id TEXT PRIMARY KEY,
+                    automation_run_id TEXT NOT NULL,
+                    job_id TEXT,
+                    mode TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    predicted_at TEXT NOT NULL,
+                    generated_at TEXT,
+                    title TEXT,
+                    company TEXT,
+                    company_website TEXT,
+                    location TEXT,
+                    overall_confidence REAL,
+                    reliability_state TEXT,
+                    supported_claim_rate REAL,
+                    contradiction_count INTEGER NOT NULL DEFAULT 0,
+                    fallback_used INTEGER NOT NULL DEFAULT 0,
+                    question_count INTEGER NOT NULL DEFAULT 0,
+                    source_document_count INTEGER NOT NULL DEFAULT 0,
+                    external_seed_url_count INTEGER NOT NULL DEFAULT 0,
+                    confidence_breakdown_json TEXT,
+                    company_dossier_json TEXT,
+                    interview_risk_map_json TEXT,
+                    open_unknowns_json TEXT,
+                    input_snapshot_json TEXT,
+                    qa_pack_json TEXT,
+                    interview_brief_json TEXT,
+                    gap_drill_plan_json TEXT,
+                    source_summary_json TEXT,
+                    legacy_result_json TEXT,
+                    metrics_json TEXT,
+                    error_text TEXT,
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                );
+
+                CREATE INDEX IF NOT EXISTS ix_interview_qa_predictions_predicted_at
+                    ON interview_qa_predictions(predicted_at DESC);
+                CREATE INDEX IF NOT EXISTS ix_interview_qa_predictions_run
+                    ON interview_qa_predictions(automation_run_id);
+                CREATE INDEX IF NOT EXISTS ix_interview_qa_predictions_company
+                    ON interview_qa_predictions(company);
+                CREATE INDEX IF NOT EXISTS ix_interview_qa_predictions_title
+                    ON interview_qa_predictions(title);
+                CREATE INDEX IF NOT EXISTS ix_interview_qa_predictions_status
+                    ON interview_qa_predictions(status);
 
                 CREATE TABLE IF NOT EXISTS learning_sources (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -437,6 +503,7 @@ class MetaRepository:
             self._ensure_location_columns(conn)
             self._ensure_job_application_tracking_columns(conn)
             self._ensure_learning_question_columns(conn)
+            self._ensure_interview_prediction_columns(conn)
             self._ensure_location_indexes(conn)
             self._seed_region_country_map(conn)
             if run_maintenance:
@@ -581,6 +648,37 @@ class MetaRepository:
             conn.execute("ALTER TABLE learning_questions ADD COLUMN explanation_rejected_reason TEXT NOT NULL DEFAULT ''")
         if "explanation_generation_stage" not in names:
             conn.execute("ALTER TABLE learning_questions ADD COLUMN explanation_generation_stage TEXT NOT NULL DEFAULT ''")
+
+    @staticmethod
+    def _ensure_interview_prediction_columns(conn) -> None:
+        cols = conn.execute("PRAGMA table_info(interview_qa_predictions)").fetchall()
+        names = {str(c["name"]) for c in cols}
+        if "source_summary_json" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN source_summary_json TEXT")
+        if "reliability_state" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN reliability_state TEXT")
+        if "supported_claim_rate" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN supported_claim_rate REAL")
+        if "contradiction_count" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN contradiction_count INTEGER NOT NULL DEFAULT 0")
+        if "fallback_used" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN fallback_used INTEGER NOT NULL DEFAULT 0")
+        if "confidence_breakdown_json" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN confidence_breakdown_json TEXT")
+        if "company_dossier_json" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN company_dossier_json TEXT")
+        if "interview_risk_map_json" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN interview_risk_map_json TEXT")
+        if "open_unknowns_json" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN open_unknowns_json TEXT")
+        if "input_snapshot_json" not in names:
+            conn.execute("ALTER TABLE interview_qa_predictions ADD COLUMN input_snapshot_json TEXT")
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS ix_interview_qa_predictions_reliability
+                ON interview_qa_predictions(reliability_state)
+            """
+        )
 
     @staticmethod
     def _ensure_location_indexes(conn) -> None:
@@ -840,13 +938,13 @@ class MetaRepository:
             "office-based": "on_site",
         }
         employment_type_keywords = {
+            "contract": "contract",
+            "freelance": "contract",
+            "freelancer": "contract",
             "full-time": "full_time",
             "full time": "full_time",
             "part-time": "part_time",
             "part time": "part_time",
-            "freelance": "contract",
-            "freelancer": "contract",
-            "contract": "contract",
             "internship": "internship",
             "temporary": "temporary",
             "volunteer": "volunteer",
@@ -879,6 +977,9 @@ class MetaRepository:
                 "employment_type",
                 "workplace_type",
                 "work_type",
+                "work_model",
+                "job_insight",
+                "job_insights",
                 "description",
                 "about_job",
                 "about_job_sections",
@@ -897,10 +998,29 @@ class MetaRepository:
 
             work_model = ""
             employment_type = ""
+            explicit_work_match = re.search(
+                r"(?:workplace|workplace type|work model|work mode)\s*[:\n ]+\s*(on[- ]?site|hybrid|remote)",
+                sample,
+                flags=re.IGNORECASE,
+            )
+            if explicit_work_match:
+                token = explicit_work_match.group(1).strip().lower()
+                if token in {"on-site", "on site", "onsite"}:
+                    work_model = "on_site"
+                elif token in {"hybrid", "remote"}:
+                    work_model = token
             for token, normalized in work_model_keywords.items():
+                if work_model:
+                    break
                 if token in sample:
                     work_model = normalized
                     break
+            if not work_model and "this position is based in" in sample and not any(
+                token in sample for token in ("remote", "hybrid", "work from home", "wfh", "telecommute")
+            ):
+                work_model = "on_site"
+            if not work_model and any(token in sample for token in ("remote-friendly", "remote friendly", "work from anywhere", "work-from-anywhere")):
+                work_model = "remote"
             for token, normalized in employment_type_keywords.items():
                 if token in sample:
                     employment_type = normalized
@@ -1282,6 +1402,84 @@ class MetaRepository:
                     "Asia/Ho_Chi_Minh",
                     "filtered_jobs",
                     json.dumps(default_config, ensure_ascii=False),
+                    "full_doc_stlye",
+                    75.0,
+                    now,
+                    now,
+                ),
+            )
+
+    def ensure_generated_artifact_repair_schedule(self) -> None:
+        with self.db.connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT id
+                FROM automation_schedules
+                WHERE pipeline_type = 'artifact_repair_recent'
+                LIMIT 1
+                """
+            ).fetchone()
+            if existing is not None:
+                return
+            now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+            crawl_config = {
+                "recent_days": 3,
+                "repair_limit": 300,
+                "only_missing": True,
+                "constraint_mode": "medium",
+                "shutdown_when_completed": False,
+            }
+            conn.execute(
+                """
+                INSERT INTO automation_schedules (
+                    name, enabled, cron_expr, timezone, pipeline_type, crawl_config_json,
+                    auto_eval_fit, fit_cv_profile, auto_generate_cv, fit_threshold, created_at, updated_at
+                ) VALUES (?, 1, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?)
+                """,
+                (
+                    "Nightly Generated Artifact Repair",
+                    "0 1 * * *",
+                    "Asia/Ho_Chi_Minh",
+                    "artifact_repair_recent",
+                    json.dumps(crawl_config, ensure_ascii=False),
+                    "full_doc_stlye",
+                    75.0,
+                    now,
+                    now,
+                ),
+            )
+
+    def ensure_garbage_cleanup_schedule(self) -> None:
+        with self.db.connect() as conn:
+            existing = conn.execute(
+                """
+                SELECT id
+                FROM automation_schedules
+                WHERE pipeline_type = 'garbage_cleanup'
+                LIMIT 1
+                """
+            ).fetchone()
+            if existing is not None:
+                return
+            now = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+            crawl_config = {
+                "retention_days": 10,
+                "max_delete_entries": 5000,
+                "shutdown_when_completed": False,
+            }
+            conn.execute(
+                """
+                INSERT INTO automation_schedules (
+                    name, enabled, cron_expr, timezone, pipeline_type, crawl_config_json,
+                    auto_eval_fit, fit_cv_profile, auto_generate_cv, fit_threshold, created_at, updated_at
+                ) VALUES (?, 1, ?, ?, ?, ?, 0, ?, 0, ?, ?, ?)
+                """,
+                (
+                    "Nightly Garbage Cleanup",
+                    "30 1 * * *",
+                    "Asia/Ho_Chi_Minh",
+                    "garbage_cleanup",
+                    json.dumps(crawl_config, ensure_ascii=False),
                     "full_doc_stlye",
                     75.0,
                     now,
