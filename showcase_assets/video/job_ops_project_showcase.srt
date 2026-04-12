@@ -1,65 +1,83 @@
 1
-00:00:00,000 --> 00:00:09,938
+00:00:00,000 --> 00:00:09,168
 This console opens with a live dashboard that summarizes
 job volume, application activity, and recent automation
 runs in one place.
 
 2
-00:00:09,938 --> 00:00:20,438
+00:00:09,168 --> 00:00:20,168
 The dashboard also exposes a density map and an applied
 trend chart, so the operator can read coverage and
 momentum before taking action.
 
 3
-00:00:20,438 --> 00:00:31,296
+00:00:20,168 --> 00:00:31,168
 Jobs is the main working queue, with filtering, sorting,
 paging, and stage aware status handling for roles that
 still need attention.
 
 4
-00:00:31,296 --> 00:00:40,749
+00:00:31,168 --> 00:00:41,168
 Each row can open a structured job detail view, making it
 easier to review normalized fields before any rewrite or
 apply step.
 
 5
-00:00:40,749 --> 00:00:50,502
+00:00:41,168 --> 00:00:50,180
 When a role is ready, the operator can generate a tailored
 CV artifact directly from the queue instead of preparing
 documents by hand.
 
 6
-00:00:50,502 --> 00:01:01,634
+00:00:50,180 --> 00:01:01,180
+The preview modal now makes loading explicit, so path
+assembly and artifact materialization read as progress
+instead of an error.
+
+7
+00:01:01,180 --> 00:01:11,438
 If artifacts already exist, the same workspace exposes
 apply and manual confirmation actions so the application
 lifecycle stays explicit.
 
-7
-00:01:01,634 --> 00:01:10,302
+8
+00:01:11,438 --> 00:01:19,438
 Applied Jobs keeps submitted roles separate, including
 apply dates and status history checks for downstream
 follow up.
 
-8
-00:01:10,302 --> 00:01:19,802
-Reposts Analytics groups repeated openings and lets the
-operator jump back into Jobs with preset filters for the
-next pass.
-
 9
-00:01:19,802 --> 00:01:30,802
+00:01:19,438 --> 00:01:29,438
+Reposts Analytics keeps the grouped repost view available
+and lets the operator jump back into Jobs with preset
+filters for the next pass.
+
+10
+00:01:29,438 --> 00:01:42,438
+Language Trends combines local demand with external
+context and a Qwen lens that expands the argument across
+market and policy dimensions.
+
+11
+00:01:42,438 --> 00:01:55,438
+Stack Trends adds stack-family grouping and crawl
+recommendations for thin buckets so weak signals stay
+visibly provisional.
+
+12
+00:01:55,438 --> 00:02:08,438
 Learning Quiz adds a lightweight knowledge layer, and
 Interview Q and A can prepare interview prompts from job
 context and CV inputs.
 
-10
-00:01:30,802 --> 00:01:42,110
+13
+00:02:08,438 --> 00:02:19,438
 Automation schedules recurring crawl, learning,
 prediction, repair, and cleanup flows without forcing the
 operator back into the terminal.
 
-11
-00:01:42,110 --> 00:01:53,123
+14
+00:02:19,438 --> 00:02:31,438
 The runs view closes the loop with progress, logs, and
 recovery actions, turning the console into a practical
 daily operations surface.

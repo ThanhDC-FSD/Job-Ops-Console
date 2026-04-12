@@ -5,9 +5,9 @@
   "subtitle_delivery": "burned_small_english_subtitles",
   "narration_voice": "Microsoft David Desktop",
   "subtitle_sync_rule": "each subtitle block is derived from the exact narration text for its scene",
-  "total_scene_duration_seconds": 113.123,
-  "raw_video_duration_seconds": 116.96,
-  "final_video_duration_seconds": 113.122,
+  "total_scene_duration_seconds": 151.438,
+  "raw_video_duration_seconds": 177.36,
+  "final_video_duration_seconds": 153.68,
   "subtitle_file": "D:\\5.Thanh\\2.automate_updating_CV\\showcase_assets\\video\\job_ops_project_showcase.srt",
   "video_file": "D:\\5.Thanh\\2.automate_updating_CV\\showcase_assets\\video\\job_ops_project_showcase.mp4",
   "acceptance_checks": {
@@ -15,7 +15,7 @@
     "uses_playwright": true,
     "subtitles_match_narration": true,
     "all_scenes_have_demo_actions": true,
-    "video_duration_matches_scene_plan_within_2s": true,
+    "video_duration_matches_scene_plan_within_2s": false,
     "raw_video_is_not_static_asset_concat": true
   },
   "scenes": [
@@ -24,8 +24,8 @@
       "title": "Dashboard Overview",
       "narration": "This console opens with a live dashboard that summarizes job volume, application activity, and recent automation runs in one place.",
       "subtitle": "This console opens with a live dashboard that summarizes\njob volume, application activity, and recent automation\nruns in one place.",
-      "audio_duration_seconds": 9.538,
-      "scene_duration_seconds": 9.938,
+      "audio_duration_seconds": 8.768,
+      "scene_duration_seconds": 9.168,
       "action_summary": "Moves across live KPI cards and the recent-runs area on the dashboard."
     },
     {
@@ -33,8 +33,8 @@
       "title": "Dashboard Analytics",
       "narration": "The dashboard also exposes a density map and an applied trend chart, so the operator can read coverage and momentum before taking action.",
       "subtitle": "The dashboard also exposes a density map and an applied\ntrend chart, so the operator can read coverage and\nmomentum before taking action.",
-      "audio_duration_seconds": 9.908,
-      "scene_duration_seconds": 10.5,
+      "audio_duration_seconds": 9.098,
+      "scene_duration_seconds": 11.0,
       "action_summary": "Scrolls through the map and trend views and performs basic mouse interaction."
     },
     {
@@ -42,8 +42,8 @@
       "title": "Jobs Workspace",
       "narration": "Jobs is the main working queue, with filtering, sorting, paging, and stage aware status handling for roles that still need attention.",
       "subtitle": "Jobs is the main working queue, with filtering, sorting,\npaging, and stage aware status handling for roles that\nstill need attention.",
-      "audio_duration_seconds": 10.458,
-      "scene_duration_seconds": 10.858,
+      "audio_duration_seconds": 9.598,
+      "scene_duration_seconds": 11.0,
       "action_summary": "Shows the jobs queue, sort controls, scrolling, and the active table state."
     },
     {
@@ -51,8 +51,8 @@
       "title": "Job Detail Modal",
       "narration": "Each row can open a structured job detail view, making it easier to review normalized fields before any rewrite or apply step.",
       "subtitle": "Each row can open a structured job detail view, making it\neasier to review normalized fields before any rewrite or\napply step.",
-      "audio_duration_seconds": 9.053,
-      "scene_duration_seconds": 9.453,
+      "audio_duration_seconds": 8.318,
+      "scene_duration_seconds": 10.0,
       "action_summary": "Opens a real job detail modal and scrolls inside it before closing."
     },
     {
@@ -60,17 +60,26 @@
       "title": "Generate CV",
       "narration": "When a role is ready, the operator can generate a tailored CV artifact directly from the queue instead of preparing documents by hand.",
       "subtitle": "When a role is ready, the operator can generate a tailored\nCV artifact directly from the queue instead of preparing\ndocuments by hand.",
-      "audio_duration_seconds": 9.353,
-      "scene_duration_seconds": 9.753,
+      "audio_duration_seconds": 8.613,
+      "scene_duration_seconds": 9.013,
       "action_summary": "Highlights a live Generate CV action in the jobs table without mutating data."
+    },
+    {
+      "key": "cv_preview_loading",
+      "title": "CV Preview Loading",
+      "narration": "The preview modal now makes loading explicit, so path assembly and artifact materialization read as progress instead of an error.",
+      "subtitle": "The preview modal now makes loading explicit, so path\nassembly and artifact materialization read as progress\ninstead of an error.",
+      "audio_duration_seconds": 8.563,
+      "scene_duration_seconds": 11.0,
+      "action_summary": "Opens a real CV preview modal and waits while loading text and materialized paths appear."
     },
     {
       "key": "apply_actions",
       "title": "Apply Actions",
       "narration": "If artifacts already exist, the same workspace exposes apply and manual confirmation actions so the application lifecycle stays explicit.",
       "subtitle": "If artifacts already exist, the same workspace exposes\napply and manual confirmation actions so the application\nlifecycle stays explicit.",
-      "audio_duration_seconds": 10.733,
-      "scene_duration_seconds": 11.133,
+      "audio_duration_seconds": 9.858,
+      "scene_duration_seconds": 10.258,
       "action_summary": "Highlights live Apply and Mark Applied Manual actions in the queue."
     },
     {
@@ -78,26 +87,44 @@
       "title": "Applied Jobs",
       "narration": "Applied Jobs keeps submitted roles separate, including apply dates and status history checks for downstream follow up.",
       "subtitle": "Applied Jobs keeps submitted roles separate, including\napply dates and status history checks for downstream\nfollow up.",
-      "audio_duration_seconds": 8.268,
-      "scene_duration_seconds": 8.668,
+      "audio_duration_seconds": 7.588,
+      "scene_duration_seconds": 8.0,
       "action_summary": "Shows the dedicated applied-jobs table and scrolls within that workspace."
     },
     {
       "key": "analytics",
       "title": "Reposts Analytics",
-      "narration": "Reposts Analytics groups repeated openings and lets the operator jump back into Jobs with preset filters for the next pass.",
-      "subtitle": "Reposts Analytics groups repeated openings and lets the\noperator jump back into Jobs with preset filters for the\nnext pass.",
-      "audio_duration_seconds": 8.461,
-      "scene_duration_seconds": 9.5,
+      "narration": "Reposts Analytics keeps the grouped repost view available and lets the operator jump back into Jobs with preset filters for the next pass.",
+      "subtitle": "Reposts Analytics keeps the grouped repost view available\nand lets the operator jump back into Jobs with preset\nfilters for the next pass.",
+      "audio_duration_seconds": 8.398,
+      "scene_duration_seconds": 10.0,
       "action_summary": "Shows the analytics table and moves across the grouped results surface."
+    },
+    {
+      "key": "analytics_language_trends",
+      "title": "Language Trends",
+      "narration": "Language Trends combines local demand with external context and a Qwen lens that expands the argument across market and policy dimensions.",
+      "subtitle": "Language Trends combines local demand with external\ncontext and a Qwen lens that expands the argument across\nmarket and policy dimensions.",
+      "audio_duration_seconds": 8.763,
+      "scene_duration_seconds": 13.0,
+      "action_summary": "Switches to Language Trends, shows the local trend view, and highlights the Qwen lens."
+    },
+    {
+      "key": "analytics_stack_trends",
+      "title": "Stack Trends",
+      "narration": "Stack Trends adds stack-family grouping and crawl recommendations for thin buckets so weak signals stay visibly provisional.",
+      "subtitle": "Stack Trends adds stack-family grouping and crawl\nrecommendations for thin buckets so weak signals stay\nvisibly provisional.",
+      "audio_duration_seconds": 7.488,
+      "scene_duration_seconds": 13.0,
+      "action_summary": "Switches to Stack Trends, shows the grouped stack view, and highlights crawl guidance."
     },
     {
       "key": "learning",
       "title": "Learning And Interview Support",
       "narration": "Learning Quiz adds a lightweight knowledge layer, and Interview Q and A can prepare interview prompts from job context and CV inputs.",
       "subtitle": "Learning Quiz adds a lightweight knowledge layer, and\nInterview Q and A can prepare interview prompts from job\ncontext and CV inputs.",
-      "audio_duration_seconds": 9.418,
-      "scene_duration_seconds": 11.0,
+      "audio_duration_seconds": 8.648,
+      "scene_duration_seconds": 13.0,
       "action_summary": "Switches between learning subtabs and shows the Interview Q and A inputs."
     },
     {
@@ -105,8 +132,8 @@
       "title": "Automation Schedules",
       "narration": "Automation schedules recurring crawl, learning, prediction, repair, and cleanup flows without forcing the operator back into the terminal.",
       "subtitle": "Automation schedules recurring crawl, learning,\nprediction, repair, and cleanup flows without forcing the\noperator back into the terminal.",
-      "audio_duration_seconds": 10.908,
-      "scene_duration_seconds": 11.308,
+      "audio_duration_seconds": 9.983,
+      "scene_duration_seconds": 11.0,
       "action_summary": "Shows automation controls, the create action, and the schedules block."
     },
     {
@@ -114,8 +141,8 @@
       "title": "Automation Runs",
       "narration": "The runs view closes the loop with progress, logs, and recovery actions, turning the console into a practical daily operations surface.",
       "subtitle": "The runs view closes the loop with progress, logs, and\nrecovery actions, turning the console into a practical\ndaily operations surface.",
-      "audio_duration_seconds": 10.613,
-      "scene_duration_seconds": 11.013,
+      "audio_duration_seconds": 9.718,
+      "scene_duration_seconds": 12.0,
       "action_summary": "Shows the runs table with recovery actions and visible operational controls."
     }
   ]
