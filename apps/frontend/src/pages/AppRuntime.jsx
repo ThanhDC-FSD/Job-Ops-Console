@@ -2,6 +2,8 @@
 import { api } from '../api/client'
 import { useRef } from 'react'
 import { createLogger } from '../utils/logger'
+import { AnalyticsLanguagePanels } from './AnalyticsLanguagePanels'
+import { AnalyticsStackPanels } from './AnalyticsStackPanels'
 import { geoMercator, geoPath } from 'd3-geo'
 import { feature as topojsonFeature } from 'topojson-client'
 import worldAtlas from 'world-atlas/countries-110m.json'
@@ -1107,6 +1109,7 @@ function CheckboxMultiSelect({
 }
 
 function Modal({ open, onClose, title, children, t, actions }) {
+  const closeText = String(t?.close || '').trim() || 'Close'
   useEffect(() => {
     if (!open) return undefined
     const handleKeyDown = (event) => {
@@ -1123,7 +1126,7 @@ function Modal({ open, onClose, title, children, t, actions }) {
           <h3>{title}</h3>
           <div className="modal-head-actions">
             {actions}
-            <button type="button" onClick={onClose}>{t.close}</button>
+            <button type="button" onClick={onClose}>{closeText}</button>
           </div>
         </div>
         <div className="modal-body">{children}</div>
@@ -2151,6 +2154,7 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
   const [loading, setLoading] = useState(false)
   const [detail, setDetail] = useState(null)
   const [cvPreview, setCvPreview] = useState(null)
+  const [cvPreviewLoading, setCvPreviewLoading] = useState(false)
   const [applyModalOpen, setApplyModalOpen] = useState(false)
   const [applyBusy, setApplyBusy] = useState(false)
   const [applyBusyJobId, setApplyBusyJobId] = useState(null)
@@ -2160,6 +2164,7 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
   const [cvPreviewTextLoading, setCvPreviewTextLoading] = useState(false)
   const [coverLetterText, setCoverLetterText] = useState('')
   const [coverLetterTextLoading, setCoverLetterTextLoading] = useState(false)
+  const [cvPreviewRepairingJobId, setCvPreviewRepairingJobId] = useState(0)
   const [reloadToken, setReloadToken] = useState(0)
   const [fitBusy, setFitBusy] = useState(false)
   const [fitInfo, setFitInfo] = useState('')
@@ -2169,6 +2174,7 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
   const [cvBusyBatch, setCvBusyBatch] = useState(false)
   const [generatedCvItems, setGeneratedCvItems] = useState([])
   const [jobsError, setJobsError] = useState('')
+  const cvPreviewRepairAttemptedRef = useRef(new Set())
   const [sort, setSort] = useState({ key: 'linkedin_posted_date', dir: 'desc' })
   const defaultFilters = {
     stage: 'filtered',
@@ -2381,6 +2387,34 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
         render_pdf: true,
         run_fit_report: true,
       })
+      const sourceJob = itemsById.get(Number(jobId)) || detail || {}
+      const nextPreview = buildCvPreviewShell({
+        ...sourceJob,
+        ...res,
+        id: Number(res.job_id || jobId),
+        job_id: Number(res.job_id || jobId),
+        title: String(res.title || sourceJob.title || detail?.title || ''),
+        company: String(sourceJob.company || detail?.company || ''),
+        location: String(sourceJob.location || detail?.location || ''),
+        pdf_path: String(res.pdf_path || ''),
+        docx_path: String(res.docx_path || ''),
+        cv_path: String(res.cv_path || ''),
+        portfolio_path: String(res.portfolio_path || ''),
+        video_path: String(res.video_path || sourceJob.generated_video_path || ''),
+        cover_letter_path: String(res.cover_letter_path || ''),
+        cover_letter_docx_path: String(res.cover_letter_docx_path || ''),
+        cover_letter_pdf_path: String(res.cover_letter_pdf_path || ''),
+        headline: String(res.headline || ''),
+        summary: String(res.summary || ''),
+        experience_summary: String(res.experience_summary || ''),
+        llm_backend: String(res.llm_backend || ''),
+        llm_model: String(res.llm_model || ''),
+        llm_usage: res.llm_usage || {},
+        cv_text: String(res.cv_text || ''),
+        cover_letter_text: String(res.cover_letter_text || ''),
+        has_materialized_artifacts: true,
+        preview_state: 'materialized',
+      })
       setGeneratedCvItems((prev) => {
         const next = [...prev.filter((x) => x.job_id !== res.job_id), res]
         return next.slice(-20)
@@ -2395,6 +2429,13 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
           )))
         }
       }
+      setCvPreviewText('')
+      setCvPreviewTextLoading(false)
+      setCoverLetterText('')
+      setCoverLetterTextLoading(false)
+      setCvPreview(nextPreview)
+      setCvPreviewLoading(false)
+      setCvPreviewRepairingJobId(0)
       setReloadToken((n) => n + 1)
     } catch (e) {
       setJobsError(String(e?.message || e))
@@ -2512,6 +2553,9 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
     jobOverride: String(t.jobOverride || 'No job override').trim() || 'No job override',
     companyDefault: String(t.companyDefault || 'No company default').trim() || 'No company default',
   }), [t])
+  const cvPreviewHasArtifacts = Boolean(cvPreview && (cvPreview.has_materialized_artifacts || cvPreview.preview_state === 'materialized'))
+  const cvPreviewHasPreviewContent = Boolean(cvPreview && (cvPreviewHasArtifacts || cvPreview.preview_state === 'artifact_text'))
+  const cvPreviewStateLabel = cvPreviewHasArtifacts ? 'Materialized artifacts' : (cvPreview?.preview_state === 'artifact_text' ? 'Artifact text only' : 'Metadata only')
   const generatedCvMap = useMemo(
     () => new Map((generatedCvItems || []).map((x) => [Number(x.job_id), x])),
     [generatedCvItems],
@@ -2543,6 +2587,53 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
       cv_text: '',
     }
   }
+  function buildCvPreviewShell(job, overrides = {}) {
+    const sourceJob = job || {}
+    const next = {
+      ...sourceJob,
+      ...overrides,
+    }
+    const hasMaterializedArtifacts = Boolean(
+      next.has_materialized_artifacts
+      || String(next.preview_state || '').trim() === 'materialized'
+      || String(next.pdf_path || next.generated_pdf_path || '').trim()
+      || String(next.docx_path || next.generated_docx_path || '').trim()
+      || String(next.cv_path || next.generated_cv_text_path || '').trim(),
+    )
+    return {
+      job_id: Number(next.job_id || next.id || 0),
+      id: Number(next.id || next.job_id || 0),
+      title: String(next.title || sourceJob.title || ''),
+      company: String(next.company || sourceJob.company || ''),
+      location: String(next.location || sourceJob.location || ''),
+      pdf_path: String(next.pdf_path || next.generated_pdf_path || ''),
+      docx_path: String(next.docx_path || next.generated_docx_path || ''),
+      cv_path: String(next.cv_path || next.generated_cv_text_path || ''),
+      portfolio_path: String(next.portfolio_path || ''),
+      video_path: String(next.video_path || next.generated_video_path || ''),
+      cover_letter_path: String(next.cover_letter_path || next.generated_cover_letter_path || ''),
+      cover_letter_docx_path: String(next.cover_letter_docx_path || next.generated_cover_letter_docx_path || ''),
+      cover_letter_pdf_path: String(next.cover_letter_pdf_path || next.generated_cover_letter_pdf_path || ''),
+      headline: String(next.headline || next.generated_headline || ''),
+      summary: String(next.summary || next.generated_summary || ''),
+      experience_summary: String(next.experience_summary || next.generated_experience_summary || ''),
+      llm_backend: String(next.llm_backend || next.generated_llm_backend || ''),
+      llm_model: String(next.llm_model || next.generated_llm_model || ''),
+      llm_usage: next.llm_usage || next.generated_llm_usage || {},
+      cv_text: String(next.cv_text || ''),
+      cover_letter_text: String(next.cover_letter_text || ''),
+      generated_headline: String(next.generated_headline || next.headline || ''),
+      generated_summary: String(next.generated_summary || next.summary || ''),
+      generated_experience_summary: String(next.generated_experience_summary || next.experience_summary || ''),
+      generated_llm_backend: String(next.generated_llm_backend || next.llm_backend || ''),
+      generated_llm_model: String(next.generated_llm_model || next.llm_model || ''),
+      generated_llm_usage: next.generated_llm_usage || next.llm_usage || {},
+      has_materialized_artifacts: hasMaterializedArtifacts,
+      preview_state: String(next.preview_state || (hasMaterializedArtifacts ? 'materialized' : 'artifact_text')),
+      artifact_diagnostics: next.artifact_diagnostics || {},
+      cv_source_path: String(next.cv_source_path || next.pdf_path || next.docx_path || next.cv_path || ''),
+    }
+  }
   function getCvItemForJob(job) {
     return generatedCvMap.get(Number(job?.id)) || cvItemFromPath(job, job?.cv_source_path)
   }
@@ -2550,16 +2641,65 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
     const jobId = Number(job?.id || job?.job_id || 0)
     if (!jobId) return
     setJobsError('')
+    const basePreview = getCvItemForJob(job) || cvItemFromPath(job, job?.cv_source_path) || {}
+    setCvPreviewLoading(true)
+    setCvPreviewText('')
+    setCvPreviewTextLoading(false)
+    setCoverLetterText('')
+    setCoverLetterTextLoading(false)
+    setCvPreviewRepairingJobId(0)
+    setCvPreview(buildCvPreviewShell({
+      ...basePreview,
+      id: jobId,
+      job_id: jobId,
+      title: String(basePreview.title || job?.title || ''),
+      company: String(basePreview.company || job?.company || ''),
+      location: String(basePreview.location || job?.location || ''),
+      preview_state: 'loading',
+      has_materialized_artifacts: false,
+    }))
     try {
-      const refreshed = await api.jobCvPreview(jobId, filters.constraint_mode || 'medium')
-      const previewItem = cvItemFromPath(refreshed, refreshed?.cv_source_path) || generatedCvMap.get(jobId) || getCvItemForJob(job)
-      if (previewItem) setCvPreview(previewItem)
+      const refreshed = await api.jobCvPreview(jobId, filters.constraint_mode || 'medium', false)
+      const nextPreview = refreshed || generatedCvMap.get(jobId) || getCvItemForJob(job)
+      setCvPreview(nextPreview)
       setItems((prev) => prev.map((row) => (Number(row.id) === jobId ? { ...row, ...refreshed } : row)))
       if (detail && Number(detail.id) === jobId) setDetail(refreshed)
+      const shouldRepairInBackground = Boolean(
+        refreshed
+        && String(refreshed.preview_state || '').trim() === 'artifact_text'
+        && !Boolean(refreshed.has_materialized_artifacts)
+        && Array.isArray(refreshed.artifact_diagnostics?.repairable_fields)
+        && refreshed.artifact_diagnostics.repairable_fields.length > 0
+        && !cvPreviewRepairAttemptedRef.current.has(jobId)
+      )
+      if (shouldRepairInBackground) {
+        cvPreviewRepairAttemptedRef.current.add(jobId)
+        setCvPreviewRepairingJobId(jobId)
+        void api.jobCvPreview(jobId, filters.constraint_mode || 'medium', true)
+          .then((materialized) => {
+            if (!materialized) return
+            setCvPreview((current) => {
+              if (Number(current?.id || current?.job_id || 0) !== jobId) return current
+              return materialized
+            })
+            setItems((prev) => prev.map((row) => (Number(row.id) === jobId ? { ...row, ...materialized } : row)))
+            if (detail && Number(detail.id) === jobId) setDetail(materialized)
+          })
+          .catch((repairError) => {
+            setJobsError((prev) => prev || String(repairError?.message || repairError))
+          })
+          .finally(() => {
+            setCvPreviewRepairingJobId((current) => (current === jobId ? 0 : current))
+          })
+      } else {
+        setCvPreviewRepairingJobId((current) => (current === jobId ? 0 : current))
+      }
     } catch (e) {
       const fallback = getCvItemForJob(job)
       if (fallback) setCvPreview(fallback)
       setJobsError(String(e?.message || e))
+    } finally {
+      setCvPreviewLoading(false)
     }
   }
   function isUploadableCvPath(value) {
@@ -2675,7 +2815,17 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
   useEffect(() => {
     let cancelled = false
     async function loadCoverLetterText() {
-      if (!cvPreview || !String(cvPreview.cover_letter_path || '').trim()) {
+      if (!cvPreview) {
+        setCoverLetterText('')
+        setCoverLetterTextLoading(false)
+        return
+      }
+      if (String(cvPreview.cover_letter_text || '').trim()) {
+        setCoverLetterText(String(cvPreview.cover_letter_text || ''))
+        setCoverLetterTextLoading(false)
+        return
+      }
+      if (!String(cvPreview.cover_letter_path || '').trim()) {
         setCoverLetterText('')
         setCoverLetterTextLoading(false)
         return
@@ -3259,60 +3409,91 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
           </button>
         </div>
       </Modal>
-      <Modal open={!!cvPreview} onClose={() => setCvPreview(null)} title={`${t.previewCv || 'Preview CV'}: ${cvPreview?.title || cvPreview?.job_id || ''}`} t={t}>
+      <Modal open={!!cvPreview} onClose={() => { setCvPreview(null); setCvPreviewLoading(false); setCvPreviewText(''); setCoverLetterText(''); setCvPreviewRepairingJobId(0) }} title={`${t.previewCv || 'Preview CV'}: ${cvPreview?.title || cvPreview?.job_id || ''}`} t={t}>
         {cvPreview && (
           <>
-              <p><b>PDF Path:</b> {cvPreview.pdf_path || '-'} {cvPreview.pdf_path ? <button onClick={() => copyToClipboard(cvPreview.pdf_path)}>Copy</button> : null}</p>
-              <p><b>DOCX Path:</b> {cvPreview.docx_path || '-'} {cvPreview.docx_path ? <button onClick={() => copyToClipboard(cvPreview.docx_path)}>Copy</button> : null}</p>
-              <p><b>TXT Path:</b> {cvPreview.cv_path || '-'} {cvPreview.cv_path ? <button onClick={() => copyToClipboard(cvPreview.cv_path)}>Copy</button> : null}</p>
-              <p><b>Portfolio PDF:</b> {cvPreview.portfolio_path || '-'} {cvPreview.portfolio_path ? <><a href={api.fileContentUrl(cvPreview.portfolio_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.portfolio_path)}>Copy</button></> : null}</p>
-              <p><b>Video Path:</b> {cvPreview.video_path || '-'} {cvPreview.video_path ? <button onClick={() => copyToClipboard(cvPreview.video_path)}>Copy</button> : null}</p>
-              <p><b>LLM Backend:</b> {cvPreview.llm_backend || cvPreview.llm_usage?.llm_backend || '-'}</p>
-              <p><b>LLM Model:</b> {cvPreview.llm_model || '-'}</p>
+              {cvPreviewLoading ? (
+                <div className="prediction-section">
+                  <div className="prediction-section-title">Loading preview</div>
+                  <div className="prediction-text">Loading... Loading... Loading...</div>
+                  <div className="prediction-text">Collecting preview paths, metadata, and file text before render.</div>
+                </div>
+              ) : null}
+              {cvPreviewRepairingJobId === Number(cvPreview.id || cvPreview.job_id || 0) ? (
+                <p className="muted">Repairing preview artifacts in background...</p>
+              ) : null}
+              <p><b>PDF Path:</b> {cvPreviewLoading && !cvPreview.pdf_path ? 'Loading...' : (cvPreview.pdf_path || '-')} {cvPreview.pdf_path ? <button onClick={() => copyToClipboard(cvPreview.pdf_path)}>Copy</button> : null}</p>
+              <p><b>DOCX Path:</b> {cvPreviewLoading && !cvPreview.docx_path ? 'Loading...' : (cvPreview.docx_path || '-')} {cvPreview.docx_path ? <button onClick={() => copyToClipboard(cvPreview.docx_path)}>Copy</button> : null}</p>
+              <p><b>TXT Path:</b> {cvPreviewLoading && !cvPreview.cv_path ? 'Loading...' : (cvPreview.cv_path || '-')} {cvPreview.cv_path ? <button onClick={() => copyToClipboard(cvPreview.cv_path)}>Copy</button> : null}</p>
+              <p><b>Portfolio PDF:</b> {cvPreviewLoading && !cvPreview.portfolio_path ? 'Loading...' : (cvPreview.portfolio_path || '-')} {cvPreview.portfolio_path ? <><a href={api.fileContentUrl(cvPreview.portfolio_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.portfolio_path)}>Copy</button></> : null}</p>
+              <p><b>Video Path:</b> {cvPreviewLoading && !cvPreview.video_path ? 'Loading...' : (cvPreview.video_path || '-')} {cvPreview.video_path ? <button onClick={() => copyToClipboard(cvPreview.video_path)}>Copy</button> : null}</p>
+              <p><b>LLM Backend:</b> {cvPreviewLoading && !cvPreview.llm_backend ? 'Loading...' : (cvPreview.llm_backend || cvPreview.llm_usage?.llm_backend || '-')}</p>
+              <p><b>LLM Model:</b> {cvPreviewLoading && !cvPreview.llm_model ? 'Loading...' : (cvPreview.llm_model || '-')}</p>
               <p><b>LLM Status:</b> {cvPreview.llm_usage?.fallback ? `Fallback (${cvPreview.llm_usage?.fallback_reason || 'unknown'})` : (cvPreview.llm_backend === 'gateway_ollama_chat' ? 'Gateway -> Ollama' : 'Gateway')}</p>
-              <p><b>Cover Letter TXT Path:</b> {cvPreview.cover_letter_path || '-'} {cvPreview.cover_letter_path ? <button onClick={() => copyToClipboard(cvPreview.cover_letter_path)}>Copy</button> : null}</p>
-              <p><b>Cover Letter DOCX Path:</b> {cvPreview.cover_letter_docx_path || '-'} {cvPreview.cover_letter_docx_path ? <><a href={api.fileContentUrl(cvPreview.cover_letter_docx_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.cover_letter_docx_path)}>Copy</button></> : null}</p>
-              <p><b>Cover Letter PDF Path:</b> {cvPreview.cover_letter_pdf_path || '-'} {cvPreview.cover_letter_pdf_path ? <><a href={api.fileContentUrl(cvPreview.cover_letter_pdf_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.cover_letter_pdf_path)}>Copy</button></> : null}</p>
+              <p><b>Preview State:</b> {cvPreviewLoading ? 'Loading...' : (String(cvPreview.preview_state || '').trim() === 'materialized' ? 'Materialized artifacts' : (String(cvPreview.preview_state || '').trim() === 'artifact_text' ? 'Artifact text only' : (String(cvPreview.preview_state || '').trim() === 'metadata_only' ? 'Metadata only' : cvPreviewStateLabel)))}</p>
+              <p><b>Cover Letter TXT Path:</b> {cvPreviewLoading && !cvPreview.cover_letter_path ? 'Loading...' : (cvPreview.cover_letter_path || '-')} {cvPreview.cover_letter_path ? <button onClick={() => copyToClipboard(cvPreview.cover_letter_path)}>Copy</button> : null}</p>
+              <p><b>Cover Letter DOCX Path:</b> {cvPreviewLoading && !cvPreview.cover_letter_docx_path ? 'Loading...' : (cvPreview.cover_letter_docx_path || '-')} {cvPreview.cover_letter_docx_path ? <><a href={api.fileContentUrl(cvPreview.cover_letter_docx_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.cover_letter_docx_path)}>Copy</button></> : null}</p>
+              <p><b>Cover Letter PDF Path:</b> {cvPreviewLoading && !cvPreview.cover_letter_pdf_path ? 'Loading...' : (cvPreview.cover_letter_pdf_path || '-')} {cvPreview.cover_letter_pdf_path ? <><a href={api.fileContentUrl(cvPreview.cover_letter_pdf_path)} target="_blank" rel="noreferrer">Open</a> <button onClick={() => copyToClipboard(cvPreview.cover_letter_pdf_path)}>Copy</button></> : null}</p>
               <p><b>Cover Letter:</b></p>
-              {coverLetterTextLoading ? (
+              {cvPreviewLoading || coverLetterTextLoading ? (
                 <p className="muted">{t.loading || 'Loading...'}</p>
               ) : coverLetterText ? (
                 <div className="code">{coverLetterText}</div>
-            ) : (
-              <p>-</p>
-            )}
-            <p><b>Headline:</b> {cvPreview.headline || '-'}</p>
-            <p><b>Summary:</b> {cvPreview.summary || '-'}</p>
-            <p><b>Experience Summary:</b> {cvPreview.experience_summary || '-'}</p>
-            {cvPreviewTextLoading ? (
-              <p className="muted">{t.loading || 'Loading...'}</p>
-            ) : (cvPreviewText || cvPreview.cv_text) ? (
-              <div
-                className="cv-rich-view"
-                dangerouslySetInnerHTML={{ __html: cvTaggedTextToHtml(cvPreviewText || cvPreview.cv_text || '') }}
-              />
-            ) : cvPreview.pdf_path ? (
-              <>
-                <div className="filters">
-                  <a href={api.fileContentUrl(cvPreview.pdf_path)} target="_blank" rel="noreferrer">
-                    Open PDF
-                  </a>
+              ) : (
+                <p>-</p>
+              )}
+              {cvPreviewLoading ? (
+                <div className="prediction-section">
+                  <div className="prediction-section-title">Loading preview details</div>
+                  <div className="prediction-text">Loading... Loading... Loading...</div>
                 </div>
-                <object
-                  className="pdf-frame"
-                  data={api.fileContentUrl(cvPreview.pdf_path)}
-                  type="application/pdf"
-                >
-                  <iframe
-                    className="pdf-frame"
-                    src={api.fileContentUrl(cvPreview.pdf_path)}
-                    title={`cv-pdf-${cvPreview.job_id || 'preview'}`}
-                  />
-                </object>
-              </>
-            ) : (
-              <div className="code">{cvPreview.cv_text || '-'}</div>
-            )}
+              ) : !cvPreviewHasPreviewContent ? (
+                <div className="prediction-section">
+                  <div className="prediction-section-title">Metadata only</div>
+                  <div className="prediction-text">
+                    This preview has database metadata, but no materialized CV artifact is available yet.
+                    Headline, summary, and render output are hidden until a real PDF, DOCX, or TXT file exists.
+                  </div>
+                  {Array.isArray(cvPreview.artifact_diagnostics?.notes) && cvPreview.artifact_diagnostics.notes.length > 0 ? (
+                    <div className="prediction-text">{cvPreview.artifact_diagnostics.notes.join(' ')}</div>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <p><b>Headline:</b> {cvPreview.headline || '-'}</p>
+                  <p><b>Summary:</b> {cvPreview.summary || '-'}</p>
+                  <p><b>Experience Summary:</b> {cvPreview.experience_summary || '-'}</p>
+                  {cvPreviewTextLoading ? (
+                    <p className="muted">{t.loading || 'Loading...'}</p>
+                  ) : (cvPreviewText || cvPreview.cv_text) ? (
+                    <div
+                      className="cv-rich-view"
+                      dangerouslySetInnerHTML={{ __html: cvTaggedTextToHtml(cvPreviewText || cvPreview.cv_text || '') }}
+                    />
+                  ) : cvPreview.pdf_path ? (
+                    <>
+                      <div className="filters">
+                        <a href={api.fileContentUrl(cvPreview.pdf_path)} target="_blank" rel="noreferrer">
+                          Open PDF
+                        </a>
+                      </div>
+                      <object
+                        className="pdf-frame"
+                        data={api.fileContentUrl(cvPreview.pdf_path)}
+                        type="application/pdf"
+                      >
+                        <iframe
+                          className="pdf-frame"
+                          src={api.fileContentUrl(cvPreview.pdf_path)}
+                          title={`cv-pdf-${cvPreview.job_id || 'preview'}`}
+                        />
+                      </object>
+                    </>
+                  ) : (
+                    <div className="code">{cvPreview.cv_text || '-'}</div>
+                  )}
+                </>
+              )}
           </>
         )}
       </Modal>
@@ -3322,6 +3503,7 @@ function JobsTab({ countries, countryGroups, programmingLanguages, programmingLa
 
 function AnalyticsTab({ countries, countryGroups, t, onOpenJobs }) {
   const analyticsView = useMemo(() => readStoredState(ANALYTICS_STATE_KEY, {}), [])
+  const [mode, setMode] = useState(() => String(analyticsView?.mode || 'reposts'))
   const [filters, setFilters] = useState(() => ({ countries: [], company: '', min_reposts: '1', limit: '200', ...(analyticsView?.filters || {}) }))
   const [rows, setRows] = useState([])
   const [sort, setSort] = useState({ key: 'repost_count', dir: 'desc' })
@@ -3329,13 +3511,37 @@ function AnalyticsTab({ countries, countryGroups, t, onOpenJobs }) {
   const [pageSize, setPageSize] = useState(() => Number(analyticsView?.pageSize) || 50)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [languageFilters, setLanguageFilters] = useState(() => ({ days: '90', top_n: '6', countries: [], ...(analyticsView?.languageFilters || {}) }))
+  const [languageData, setLanguageData] = useState(null)
+  const [languageLoading, setLanguageLoading] = useState(false)
+  const [languageError, setLanguageError] = useState('')
+  const [languageContext, setLanguageContext] = useState(null)
+  const [languageContextLoading, setLanguageContextLoading] = useState(false)
+  const [languageContextError, setLanguageContextError] = useState('')
+  const [languageAiInsights, setLanguageAiInsights] = useState(null)
+  const [languageAiLoading, setLanguageAiLoading] = useState(false)
+  const [languageAiError, setLanguageAiError] = useState('')
+  const languageRequestSeqRef = useRef(0)
+  const languageAiRequestSeqRef = useRef(0)
+  const [stackFilters, setStackFilters] = useState(() => ({ days: '90', top_n: '6', countries: [], ...(analyticsView?.stackFilters || {}) }))
+  const [stackData, setStackData] = useState(null)
+  const [stackLoading, setStackLoading] = useState(false)
+  const [stackError, setStackError] = useState('')
+  const [stackContext, setStackContext] = useState(null)
+  const [stackContextLoading, setStackContextLoading] = useState(false)
+  const [stackContextError, setStackContextError] = useState('')
+  const [stackAiInsights, setStackAiInsights] = useState(null)
+  const [stackAiLoading, setStackAiLoading] = useState(false)
+  const [stackAiError, setStackAiError] = useState('')
+  const stackRequestSeqRef = useRef(0)
+  const stackAiRequestSeqRef = useRef(0)
   const countryOptions = countries.map((c) => ({ label: c, value: c }))
   const rowsSorted = useMemo(() => sortRows(rows, sort), [rows, sort])
   const pg = useMemo(() => paginateRows(rowsSorted, page, pageSize), [rowsSorted, page, pageSize])
   const onSort = (key) => setSort((prev) => ({ key, dir: prev.key === key && prev.dir === 'asc' ? 'desc' : 'asc' }))
   useEffect(() => {
-    writeStoredState(ANALYTICS_STATE_KEY, { filters, page, pageSize })
-  }, [filters, page, pageSize])
+    writeStoredState(ANALYTICS_STATE_KEY, { mode, filters, page, pageSize, languageFilters, stackFilters })
+  }, [mode, filters, page, pageSize, languageFilters, stackFilters])
 
   async function runAnalytics() {
     setLoading(true)
@@ -3360,57 +3566,370 @@ function AnalyticsTab({ countries, countryGroups, t, onOpenJobs }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  useEffect(() => {
+    if (mode !== 'language_trends') return
+    runLanguageAnalytics()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
+  useEffect(() => {
+    if (mode !== 'stack_trends') return
+    runStackAnalytics()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode])
+
   function openCompanyJobs(companyName) {
     const company = String(companyName || '').trim()
     if (!company || typeof onOpenJobs !== 'function') return
     onOpenJobs({ company, offset: '0' })
   }
 
+  function openLanguageJobs(language, countriesForPreset = []) {
+    const languageName = String(language || '').trim()
+    if (!languageName || typeof onOpenJobs !== 'function') return
+    onOpenJobs({
+      programming_languages: [languageName],
+      countries: Array.isArray(countriesForPreset) ? countriesForPreset.filter(Boolean) : [],
+      offset: '0',
+    })
+  }
+
+  function openStackJobs(group, countriesForPreset = []) {
+    const groupName = String(group || '').trim()
+    if (!groupName || typeof onOpenJobs !== 'function') return
+    const searchTerm = (() => {
+      const normalized = groupName.toLowerCase()
+      if (normalized.includes('full stack')) return 'full stack'
+      if (normalized.includes('frontend')) return 'frontend'
+      if (normalized.includes('backend')) return 'backend'
+      if (normalized.includes('ai')) return 'ai'
+      if (normalized.includes('data')) return 'data'
+      if (normalized.includes('devops')) return 'devops'
+      if (normalized.includes('mobile')) return 'mobile'
+      return groupName
+    })()
+    onOpenJobs({
+      search: searchTerm,
+      countries: Array.isArray(countriesForPreset) ? countriesForPreset.filter(Boolean) : [],
+      offset: '0',
+    })
+  }
+
+  async function runLanguageAi(trendData, contextData, refresh = false) {
+    const requestSeq = languageAiRequestSeqRef.current + 1
+    languageAiRequestSeqRef.current = requestSeq
+    setLanguageAiLoading(true)
+    setLanguageAiError('')
+    try {
+      const res = await api.trendAiInsights({
+        trend_kind: 'language',
+        trend: trendData || {},
+        context: contextData || {},
+        refresh: refresh ? 1 : 0,
+      })
+      if (requestSeq !== languageAiRequestSeqRef.current) return
+      setLanguageAiInsights(res || null)
+    } catch (e) {
+      if (requestSeq !== languageAiRequestSeqRef.current) return
+      setLanguageAiInsights(null)
+      setLanguageAiError(String(e?.message || e))
+    } finally {
+      if (requestSeq === languageAiRequestSeqRef.current) setLanguageAiLoading(false)
+    }
+  }
+
+  async function runLanguageContext(payload, requestSeq, refresh = false, trendData = null) {
+    setLanguageContextLoading(true)
+    setLanguageContextError('')
+    try {
+      const res = await api.languageMarketContext({ ...payload, refresh: refresh ? 1 : 0 })
+      if (requestSeq !== languageRequestSeqRef.current) return
+      setLanguageContext(res || null)
+      void runLanguageAi(trendData || languageData || {}, res || null, refresh)
+    } catch (e) {
+      if (requestSeq !== languageRequestSeqRef.current) return
+      setLanguageContext(null)
+      setLanguageContextError(String(e?.message || e))
+      void runLanguageAi(trendData || languageData || {}, null, refresh)
+    } finally {
+      if (requestSeq === languageRequestSeqRef.current) setLanguageContextLoading(false)
+    }
+  }
+
+  async function runLanguageAnalytics({ refreshContext = false } = {}) {
+    const payload = {
+      days: String(Math.max(14, Number(languageFilters.days) || 90)),
+      top_n: String(Math.max(3, Number(languageFilters.top_n) || 6)),
+      countries: languageFilters.countries || [],
+    }
+    const requestSeq = languageRequestSeqRef.current + 1
+    languageRequestSeqRef.current = requestSeq
+    setLanguageLoading(true)
+    setLanguageError('')
+    setLanguageContext(null)
+    setLanguageContextError('')
+    setLanguageAiInsights(null)
+    setLanguageAiError('')
+    try {
+      const res = await api.languageHiringTrends(payload)
+      if (requestSeq !== languageRequestSeqRef.current) return
+      setLanguageData(res || null)
+      void runLanguageContext(payload, requestSeq, refreshContext, res || null)
+    } catch (e) {
+      if (requestSeq !== languageRequestSeqRef.current) return
+      setLanguageData(null)
+      setLanguageError(String(e?.message || e))
+    } finally {
+      if (requestSeq === languageRequestSeqRef.current) setLanguageLoading(false)
+    }
+  }
+
+  async function runStackAi(trendData, contextData, refresh = false) {
+    const requestSeq = stackAiRequestSeqRef.current + 1
+    stackAiRequestSeqRef.current = requestSeq
+    setStackAiLoading(true)
+    setStackAiError('')
+    try {
+      const res = await api.trendAiInsights({
+        trend_kind: 'stack',
+        trend: trendData || {},
+        context: contextData || {},
+        refresh: refresh ? 1 : 0,
+      })
+      if (requestSeq !== stackAiRequestSeqRef.current) return
+      setStackAiInsights(res || null)
+    } catch (e) {
+      if (requestSeq !== stackAiRequestSeqRef.current) return
+      setStackAiInsights(null)
+      setStackAiError(String(e?.message || e))
+    } finally {
+      if (requestSeq === stackAiRequestSeqRef.current) setStackAiLoading(false)
+    }
+  }
+
+  async function runStackContext(payload, requestSeq, refresh = false, trendData = null) {
+    setStackContextLoading(true)
+    setStackContextError('')
+    try {
+      const res = await api.stackMarketContext({ ...payload, refresh: refresh ? 1 : 0 })
+      if (requestSeq !== stackRequestSeqRef.current) return
+      setStackContext(res || null)
+      void runStackAi(trendData || stackData || {}, res || null, refresh)
+    } catch (e) {
+      if (requestSeq !== stackRequestSeqRef.current) return
+      setStackContext(null)
+      setStackContextError(String(e?.message || e))
+      void runStackAi(trendData || stackData || {}, null, refresh)
+    } finally {
+      if (requestSeq === stackRequestSeqRef.current) setStackContextLoading(false)
+    }
+  }
+
+  async function runStackAnalytics({ refreshContext = false } = {}) {
+    const payload = {
+      days: String(Math.max(14, Number(stackFilters.days) || 90)),
+      top_n: String(Math.max(3, Number(stackFilters.top_n) || 6)),
+      countries: stackFilters.countries || [],
+    }
+    const requestSeq = stackRequestSeqRef.current + 1
+    stackRequestSeqRef.current = requestSeq
+    setStackLoading(true)
+    setStackError('')
+    setStackContext(null)
+    setStackContextError('')
+    setStackAiInsights(null)
+    setStackAiError('')
+    try {
+      const res = await api.stackHiringTrends(payload)
+      if (requestSeq !== stackRequestSeqRef.current) return
+      setStackData(res || null)
+      void runStackContext(payload, requestSeq, refreshContext, res || null)
+    } catch (e) {
+      if (requestSeq !== stackRequestSeqRef.current) return
+      setStackData(null)
+      setStackError(String(e?.message || e))
+    } finally {
+      if (requestSeq === stackRequestSeqRef.current) setStackLoading(false)
+    }
+  }
+
+  function refreshLanguageAiInsights() {
+    if (!languageData) return
+    void runLanguageAi(languageData, languageContext, true)
+  }
+
+  function refreshStackAiInsights() {
+    if (!stackData) return
+    void runStackAi(stackData, stackContext, true)
+  }
+
   return (
     <div className="grid single">
-      <div className="card">
-        <div className="jobs-head">
-          <h3>{t.analytics}</h3>
-          <div className="pager">
-            <span>{t.showing} {pg.start}-{pg.end} {t.of} {pg.total} {t.records}</span>
-            <span>{t.pageSize}</span>
-            <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value) || 50); setPage(1) }}>
-              {PAGE_SIZE_OPTIONS.map((size) => (
-                <option key={size} value={size}>{size}</option>
-              ))}
-            </select>
-            <button disabled={pg.page <= 1} onClick={() => setPage(pg.page - 1)}>{t.prev}</button>
-            <span>{t.page} {pg.page}/{pg.totalPages}</span>
-            <button disabled={pg.page >= pg.totalPages} onClick={() => setPage(pg.page + 1)}>{t.next}</button>
-            <button onClick={runAnalytics}>{t.run}</button>
-            {loading && <span className="muted">{t.loading}</span>}
-            {!loading && <span className="muted">rows={rows.length}</span>}
+      <div className="card analytics-shell">
+        <div className="card-head">
+          <div>
+            <h3>{t.analytics}</h3>
+            <div className="muted">Reposts stays intact. Language Trends and Stack Trends add a 90-day demand layer with local regional breakdown and cached external context.</div>
+          </div>
+          <div className="subtabs">
+            <button className={`subtab-btn ${mode === 'reposts' ? 'active' : ''}`} onClick={() => setMode('reposts')}>Reposts</button>
+            <button className={`subtab-btn ${mode === 'language_trends' ? 'active' : ''}`} onClick={() => setMode('language_trends')}>Language Trends</button>
+            <button className={`subtab-btn ${mode === 'stack_trends' ? 'active' : ''}`} onClick={() => setMode('stack_trends')}>Stack Trends</button>
           </div>
         </div>
-        {error && <div className="error-text">{error}</div>}
-        <table>
-          <thead>
-            <tr><SortTh label={t.company} col="company" sort={sort} onSort={onSort} /><SortTh label={t.location} col="location" sort={sort} onSort={onSort} /><SortTh label={t.reposts} col="repost_count" sort={sort} onSort={onSort} /><SortTh label={t.durationDays} col="duration_days" sort={sort} onSort={onSort} /><SortTh label={t.first} col="first_repost_date" sort={sort} onSort={onSort} /><SortTh label={t.last} col="last_repost_date" sort={sort} onSort={onSort} /><SortTh label={t.distinctPosts} col="distinct_job_posts" sort={sort} onSort={onSort} /></tr>
-            <tr className="filter-row">
-              <th><input placeholder={t.company} value={filters.company} onChange={(e) => setFilters({ ...filters, company: e.target.value })} /></th>
-              <th><CheckboxMultiSelect label={t.country} options={countryOptions} groups={countryGroups} selected={filters.countries} onChange={(v) => setFilters({ ...filters, countries: v })} t={t} applyMode /></th>
-              <th><input placeholder={t.minReposts} value={filters.min_reposts} onChange={(e) => setFilters({ ...filters, min_reposts: e.target.value })} /></th>
-              <th></th><th></th><th></th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {pg.items.map((r, idx) => (
-              <tr key={`${r.company}-${idx}`}>
-                <td>
-                  <button type="button" className="link-btn" onClick={() => openCompanyJobs(r.company)}>
-                    {r.company}
-                  </button>
-                </td>
-                <td>{r.location}</td><td>{r.repost_count}</td><td>{r.duration_days}</td><td>{r.first_repost_date}</td><td>{r.last_repost_date}</td><td>{r.distinct_job_posts}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {mode === 'reposts' ? (
+          <>
+            <div className="jobs-head">
+              <div className="pager">
+                <span>{t.showing} {pg.start}-{pg.end} {t.of} {pg.total} {t.records}</span>
+                <span>{t.pageSize}</span>
+                <select value={pageSize} onChange={(e) => { setPageSize(Number(e.target.value) || 50); setPage(1) }}>
+                  {PAGE_SIZE_OPTIONS.map((size) => (
+                    <option key={size} value={size}>{size}</option>
+                  ))}
+                </select>
+                <button disabled={pg.page <= 1} onClick={() => setPage(pg.page - 1)}>{t.prev}</button>
+                <span>{t.page} {pg.page}/{pg.totalPages}</span>
+                <button disabled={pg.page >= pg.totalPages} onClick={() => setPage(pg.page + 1)}>{t.next}</button>
+                <button onClick={runAnalytics}>{t.run}</button>
+                {loading && <span className="muted">{t.loading}</span>}
+                {!loading && <span className="muted">rows={rows.length}</span>}
+              </div>
+            </div>
+            {error && <div className="error-text">{error}</div>}
+            <table>
+              <thead>
+                <tr><SortTh label={t.company} col="company" sort={sort} onSort={onSort} /><SortTh label={t.location} col="location" sort={sort} onSort={onSort} /><SortTh label={t.reposts} col="repost_count" sort={sort} onSort={onSort} /><SortTh label={t.durationDays} col="duration_days" sort={sort} onSort={onSort} /><SortTh label={t.first} col="first_repost_date" sort={sort} onSort={onSort} /><SortTh label={t.last} col="last_repost_date" sort={sort} onSort={onSort} /><SortTh label={t.distinctPosts} col="distinct_job_posts" sort={sort} onSort={onSort} /></tr>
+                <tr className="filter-row">
+                  <th><input placeholder={t.company} value={filters.company} onChange={(e) => setFilters({ ...filters, company: e.target.value })} /></th>
+                  <th><CheckboxMultiSelect label={t.country} options={countryOptions} groups={countryGroups} selected={filters.countries} onChange={(v) => setFilters({ ...filters, countries: v })} t={t} applyMode /></th>
+                  <th><input placeholder={t.minReposts} value={filters.min_reposts} onChange={(e) => setFilters({ ...filters, min_reposts: e.target.value })} /></th>
+                  <th></th><th></th><th></th><th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {pg.items.map((r, idx) => (
+                  <tr key={`${r.company}-${idx}`}>
+                    <td>
+                      <button type="button" className="link-btn" onClick={() => openCompanyJobs(r.company)}>
+                        {r.company}
+                      </button>
+                    </td>
+                    <td>{r.location}</td><td>{r.repost_count}</td><td>{r.duration_days}</td><td>{r.first_repost_date}</td><td>{r.last_repost_date}</td><td>{r.distinct_job_posts}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        ) : mode === 'language_trends' ? (
+          <div className="analytics-language-layout">
+            <div className="analytics-hero-card">
+              <div className="analytics-hero-copy">
+                <div className="analytics-eyebrow">Local demand radar</div>
+                <div className="analytics-hero-title">Programming language hiring trend, last {Number(languageFilters.days) || 90} days</div>
+                <div className="analytics-hero-body">
+                  Local job observations drive the trend chart first. Lightweight external crawl only enriches the narrative after the data is already on screen.
+                </div>
+              </div>
+              <div className="analytics-hero-actions">
+                <label className="jobs-filter-field jobs-filter-compact">
+                  <span>Window</span>
+                  <select value={String(languageFilters.days)} onChange={(e) => setLanguageFilters((prev) => ({ ...prev, days: e.target.value }))}>
+                    {[30, 60, 90, 120].map((daysValue) => (
+                      <option key={daysValue} value={daysValue}>{daysValue} days</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="jobs-filter-field jobs-filter-compact">
+                  <span>Top languages</span>
+                  <select value={String(languageFilters.top_n)} onChange={(e) => setLanguageFilters((prev) => ({ ...prev, top_n: e.target.value }))}>
+                    {[4, 5, 6, 7, 8].map((limitValue) => (
+                      <option key={limitValue} value={limitValue}>{limitValue}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="jobs-filter-field">
+                  <span>{t.country || 'Country'}</span>
+                  <CheckboxMultiSelect label={t.country || 'Country'} options={countryOptions} groups={countryGroups} selected={languageFilters.countries} onChange={(v) => setLanguageFilters((prev) => ({ ...prev, countries: v }))} t={t} applyMode showLabelInSummary={false} />
+                </label>
+                <button className="primary-action" onClick={() => runLanguageAnalytics({ refreshContext: false })}>
+                  {languageLoading ? (t.loading || 'Loading...') : 'Refresh trend'}
+                </button>
+                <button onClick={() => runLanguageAnalytics({ refreshContext: true })}>Refresh context</button>
+              </div>
+            </div>
+            {languageError ? <div className="error-text">{languageError}</div> : null}
+            {languageLoading && !languageData ? <div className="empty-state">{t.loading || 'Loading...'}</div> : null}
+            {languageData ? (
+              <AnalyticsLanguagePanels
+                languageData={languageData}
+                languageContext={languageContext}
+                languageContextLoading={languageContextLoading}
+                languageContextError={languageContextError}
+                languageAiInsights={languageAiInsights}
+                languageAiLoading={languageAiLoading}
+                languageAiError={languageAiError}
+                onOpenLanguageJobs={openLanguageJobs}
+                onRefreshLanguageAiInsights={refreshLanguageAiInsights}
+                t={t}
+              />
+            ) : null}
+          </div>
+        ) : (
+          <div className="analytics-language-layout">
+            <div className="analytics-hero-card">
+              <div className="analytics-hero-copy">
+                <div className="analytics-eyebrow">Stack demand radar</div>
+                <div className="analytics-hero-title">Programming stack group trend, last {Number(stackFilters.days) || 90} days</div>
+                <div className="analytics-hero-body">
+                  This view groups jobs into Full Stack, FE, BE, AI, and adjacent mixes. Buckets with thin coverage are flagged for extra backfill instead of being treated as stable signals.
+                </div>
+              </div>
+              <div className="analytics-hero-actions">
+                <label className="jobs-filter-field jobs-filter-compact">
+                  <span>Window</span>
+                  <select value={String(stackFilters.days)} onChange={(e) => setStackFilters((prev) => ({ ...prev, days: e.target.value }))}>
+                    {[30, 60, 90, 120].map((daysValue) => (
+                      <option key={daysValue} value={daysValue}>{daysValue} days</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="jobs-filter-field jobs-filter-compact">
+                  <span>Top groups</span>
+                  <select value={String(stackFilters.top_n)} onChange={(e) => setStackFilters((prev) => ({ ...prev, top_n: e.target.value }))}>
+                    {[4, 5, 6, 7, 8].map((limitValue) => (
+                      <option key={limitValue} value={limitValue}>{limitValue}</option>
+                    ))}
+                  </select>
+                </label>
+                <label className="jobs-filter-field">
+                  <span>{t.country || 'Country'}</span>
+                  <CheckboxMultiSelect label={t.country || 'Country'} options={countryOptions} groups={countryGroups} selected={stackFilters.countries} onChange={(v) => setStackFilters((prev) => ({ ...prev, countries: v }))} t={t} applyMode showLabelInSummary={false} />
+                </label>
+                <button className="primary-action" onClick={() => runStackAnalytics({ refreshContext: false })}>
+                  {stackLoading ? (t.loading || 'Loading...') : 'Refresh trend'}
+                </button>
+                <button onClick={() => runStackAnalytics({ refreshContext: true })}>Refresh context</button>
+              </div>
+            </div>
+            {stackError ? <div className="error-text">{stackError}</div> : null}
+            {stackLoading && !stackData ? <div className="empty-state">{t.loading || 'Loading...'}</div> : null}
+            {stackData ? (
+              <AnalyticsStackPanels
+                stackData={stackData}
+                stackContext={stackContext}
+                stackContextLoading={stackContextLoading}
+                stackContextError={stackContextError}
+                stackAiInsights={stackAiInsights}
+                stackAiLoading={stackAiLoading}
+                stackAiError={stackAiError}
+                onOpenStackJobs={openStackJobs}
+                onRefreshStackAiInsights={refreshStackAiInsights}
+                t={t}
+              />
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   )

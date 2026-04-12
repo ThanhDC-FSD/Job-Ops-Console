@@ -340,10 +340,13 @@ def build_automation_router(
             "headline": result.headline,
             "summary": result.summary,
             "experience_summary": result.experience_summary,
+            "cover_letter_text": result.cover_letter_text,
             "llm_backend": result.llm_backend,
             "llm_model": result.llm_model,
             "llm_usage": result.llm_usage,
             "cv_text": result.cv_text,
+            "has_materialized_artifacts": True,
+            "preview_state": "materialized",
         }
 
     def _extract_jd_from_payload(row: dict) -> str:
@@ -448,6 +451,13 @@ def build_automation_router(
     @router.get("/runs")
     def runs(limit: int = 50) -> dict:
         return {"items": automation.list_runs(limit)}
+
+    @router.get("/runs/{run_id}")
+    def run_detail(run_id: int) -> dict:
+        item = automation.get_run(run_id)
+        if item is None:
+            raise HTTPException(status_code=404, detail="Run not found")
+        return item
 
     @router.post("/runs/{run_id}/force-stop")
     def force_stop_run(run_id: int) -> dict:

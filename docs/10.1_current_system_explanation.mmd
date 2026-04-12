@@ -101,10 +101,16 @@ flowchart TD
     D --> D4[Log file là nguồn chẩn đoán quan trọng]
     D --> D5[Interview Q&A ưu tiên crawl nhẹ rồi mới dùng Qwen]
     D --> D6[CV preview trả cả generated paths và alias path ngắn cho UI]
+    D --> D6A[Generate CV trả preview-ready payload để modal có thể mở ngay]
     D --> D7[Details modal dùng normalized fields với fallback hiển thị]
     D --> D7A[Jobs filter labels and multi-select summaries use safe fallback text]
     D --> D7B[Jobs dropdowns close on outside click and avoid overlap with tighter width rules]
     D --> D7C[Job detail modal labels use safe fallback text to avoid undefined rows]
+    D --> D7D[Shared modal close button uses fallback text when locale key is missing]
+    D --> D7E[Job detail falls back to payload workplace and job insight fields for work model and employment type]
+    D --> D7F[Job detail can derive remote work model from fit-result remote-friendly signals]
+    D --> D7G[Employment type inference prefers contract over incidental full-time conversion wording]
+    D --> D7H[Maintenance backfill scans payload workplace and insight fields so old rows recover missing normalization]
     D --> D8[Empty preview paths không còn bị coi nhầm là existing files]
     D --> D9[PDF fallback được tạo khi docx2pdf fail]
     D --> D10[Interview QA runtime now uses modular package under scripts/python/interview_qa]
@@ -114,6 +120,14 @@ flowchart TD
     D10 --> D10D[external_crawl adds lightweight external evidence before LLM]
     D --> D11[CV preview exposes cover-letter txt docx and pdf paths]
     D --> D12[CV preview is read-only and repair shifts to explicit repair jobs]
+    D --> D12A[CV preview reads artifact text directly for a fast modal open]
+    D --> D12B[CV preview distinguishes materialized artifact text only and metadata only states]
+    D --> D12C[Generated headline and summary fields now count as artifact text even before file materialization]
+    D --> D12E[Default CV detail and preview keep the fast read-only path unless repair is explicitly requested]
+    D --> D12H[Preview modal shows repeated Loading placeholders while metadata and file text are still being assembled]
+    D --> D12F[Frontend auto-repairs artifact text previews in background and refreshes paths when materialization finishes]
+    D --> D12G[Background preview repair is guarded per job so repeated opens do not retrigger heavy materialization]
+    D --> D12D[Runbook 10.5 captures April 2026 troubleshooting for job detail and CV preview regressions]
     D --> D13[Automation seeds nightly generated artifact repair at 01:00 for the recent 3-day window]
     D --> D14[Automation seeds nightly garbage cleanup at 01:30 for backup and log retention]
     D --> D15[Custom JD mode skips the DB window when Job IDs are not supplied]
@@ -132,6 +146,13 @@ flowchart TD
     E3 --> E4[Reposts Analytics]
     E4 --> E5[Learning Quiz]
     E5 --> E6[Automation]
+    B4 --> B4D[Language Trends subtab]
+    B4D --> B4D1[90-day language trend lines]
+    B4D --> B4D2[Regional concentration cards]
+    B4D --> B4D3[Country drill-back into Jobs]
+    B4D --> B4D4[External market context cards]
+    B4D --> B4D5[Qwen lens with multi-dimensional trend analysis]
+    B4D --> B4D6[Crawl expansion hints for missing evidence]
     D --> D16[Interview Q&A retries transient LLM timeouts and preserves batch progress]
     D16 --> D16A[Failed vet pass falls back to generation output]
     D16 --> D16B[Failed jobs are recorded in summary without aborting the batch]
@@ -153,6 +174,14 @@ flowchart TD
     C7 --> C7A[List predictions]
     C7 --> C7B[Prediction detail]
     C7 --> C7C[By-run lookup]
+    D --> D20[Language Trends local analytics materializes temp tables inside one SQLite connection]
+    D --> D20A[Measured local smoke around 608ms for 30-day top-4 trend endpoint]
+    D --> D20B[External market context uses requests plus BeautifulSoup on a curated source list]
+    D --> D20C[External facts are cached in memory for 6 hours]
+    D --> D20D[Stale market context returns cached data immediately and refreshes in background]
+    D --> D20E[UI renders local trend cards first and fills source-backed explanations after]
+    D --> D20F[Qwen lens runs on a compact trend snapshot and stays off the chart hot path]
+    D --> D20G[Qwen fallback keeps deterministic notes when the local model is unavailable]
 %% 2026-04-10 extension for predict_interview_qa
 %% New additive outputs: company_dossier, interview_risk_map, confidence_breakdown, reliability_state.
 %% The existing three-tab UI and SQLite-backed prediction table remain unchanged.
@@ -169,3 +198,15 @@ flowchart TD
 %% 2026-04-11 update: predict_interview_qa now uses a 20-second model timeout with no retry loop so fallback activates quickly instead of compounding latency.
 %% 2026-04-11 update: predict_interview_qa now separates intent and proof bundles before generation so the final pack keeps one interview angle per question when possible.
 %% 2026-04-11 update: a rule-based dedup pass drops repeated answer skeletons and moves low-uniqueness questions into gap/drill items instead of persisting template-like duplicates.
+%% 2026-04-12 update: Reposts Analytics now includes Stack Trends, which classifies jobs into stack groups and surfaces crawl recommendations for thin buckets.
+%% 2026-04-12 update: Stack Trends reuses the same cached external source pattern as Language Trends so broader world context stays off the hot path.
+%% 2026-04-12 update: stale external market context now returns cached data immediately and refreshes in the background instead of blocking the analytics chart.
+
+    B4E[Stack Trends]
+    B4E --> B4E1[90-day stack group trend lines]
+    B4E --> B4E2[Regional concentration cards]
+    B4E --> B4E3[Country drill-back into Jobs]
+    B4E --> B4E4[External market context cards]
+    B4E --> B4E5[Crawl recommendations for thin buckets]
+    B4E --> B4E6[Qwen lens expands the stack thesis across economic social policy and geopolitical dimensions]
+    B4E --> B4E7[Crawl hints identify which missing evidence would strengthen the stack story]
