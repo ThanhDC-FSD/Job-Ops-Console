@@ -8,6 +8,13 @@ flowchart TD
     B --> B4[Reposts Analytics]
     B --> B5[Learning Quiz]
     B --> B6[Automation]
+    B6 --> OSA[LinkedIn Offsite Apply]
+    OSA --> OSA1[Bounded DOM action catalog (action_candidates)]
+    OSA --> OSA2[LLM selects candidate_id only]
+    OSA --> OSA3[Playwright execute + verification]
+    OSA --> OSA4[Single recovery re-plan]
+    OSA --> OSA5[Final submit blocked + security gates manual]
+    OSA --> OSA6[Diagnostics + provenance]
     B --> B7[UI feature inventory in 10.3]
     B7 --> B7A[Top 10 shortlist for a 2-minute showcase]
     B7 --> B7B[Brief coverage for the remaining UI features]
@@ -20,6 +27,7 @@ flowchart TD
     B1 --> B1D[Recent Runs]
 
     B2 --> B2A[Lọc / sort / paging]
+    B2A --> B2A1[No-results diagnostic shows active filters and offers keep-search reset]
     B2 --> B2B[Job detail modal]
     B2 --> B2C[Generate CV]
     B2 --> B2D[Apply]
@@ -61,13 +69,19 @@ flowchart TD
     B6 --> B6E[Schedules]
     B6 --> B6F[Runs]
     B6 --> B6G[Garbage Cleanup schedule]
+    B6 --> B6H[SQLite completion profiles]
     B6B --> B6B1[Run Crawl Filtered: Crawl All]
     B6B --> B6B2[Run Crawl Filtered: Crawl Company Jobs]
+    B6B --> B6B3[Run Apply Self-Heal Harness]
+    B6B3 --> B6B3A[Detect SQLite lock signature in recent failed apply runs]
+    B6B3 --> B6B3B[Rerun apply with safer busy_timeout and record artifacts/harness history]
+    B6B3 --> B6B3C[Targets automation_runs in JOB_DB_PATH and can filter by include-run-ids]
     B6B --> B6B0[Run Crawl Filtered expands config only when clicked]
     B6B2 --> B6B2A[Company name input]
     B6B2 --> B6B2B[Resolve LinkedIn company page to f_C ids]
-    B6B2 --> B6B2C[Fallback to strict company keyword filter]
-    B6B2 --> B6B2D[Fallback on guest HTTP 999 instead of failing]
+    B6B2 --> B6B2C[Fallback uses strict company-name post-filtering plus a company-keyword guest search when f_C ids are missing]
+    B6B2 --> B6B2D[Guest HTTP 999/403/429 can trigger headless Playwright fallback via saved .pw-profile session]
+    B6B2 --> B6B2E[Guest job detail can recover location from the visible title company location block when meta bullets are absent]
 
     B6C --> B6C1[Latest step]
     B6C --> B6C2[Started time]
@@ -76,13 +90,19 @@ flowchart TD
     B6E --> B6E1[Enabled]
     B6E --> B6E2[Cron]
     B6E --> B6E3[Next run]
-    B6E --> B6E4[Shutdown when completed]
+    B6E --> B6E4[Shutdown state is shown by the inline badge in Name]
+    B6E --> B6E5[Fixed 9-column widths keep long names and action buttons readable]
+    B6E --> B6E6[Default sort is Next run ascending]
+    B6E --> B6E7[Estimated duration and end time are shown for the next occurrence]
+    B6D --> B6D1[Create or edit schedule previews overlap risk before save]
 
-    B6F --> B6F1[Status / phase / progress]
+    B6F --> B6F1[Status / phase / progress / ETA]
     B6F --> B6F2[Log file]
     B6F --> B6F3[Pause / Resume / Stop]
     B6F --> B6F4[Recall]
     B6F --> B6F5[Set Time]
+    B6H --> B6H1[Completed runs update profile rows by action_type and day]
+    B6H --> B6H2[Runs page reads ETA snapshots without rescanning logs]
 
     C --> C1[Frontend React]
     C1 --> C1A[App.jsx is a thin app shell]
@@ -92,8 +112,15 @@ flowchart TD
     C --> C3[APScheduler]
     C --> C4[SQLite]
     C --> C5[Scripts Python]
+    C5 --> CVR[CV rendering]
+    CVR --> CVR1[Tagged input profiles in input/]
+    CVR1 --> CVR1A[full_doc_stlye.txt]
+    CVR1 --> CVR1B[full_doc_stlye_electric.txt]
+    CVR1 --> CVR1C[crossover_resume.txt (generated)]
+    CVR1 --> CVR1D[backups/cv_backup_<timestamp>/ (tagged + showcase artifacts)]
+    CVR --> CVR2[render_cv_docx.py: tagged text to DOCX/PDF]
+    CVR --> CVR3[build_crossover_resume_profile.py: full to crossover]
     C --> C6[Local model / local gateway]
-
     C --> D[Các lưu ý vận hành]
     D --> D1[Pending run có thể kẹt nếu restart sau giờ hẹn]
     D --> D2[Recall và Set Time là cơ chế backfill thủ công]
@@ -101,16 +128,45 @@ flowchart TD
     D --> D4[Log file là nguồn chẩn đoán quan trọng]
     D --> D5[Interview Q&A ưu tiên crawl nhẹ rồi mới dùng Qwen]
     D --> D6[CV preview trả cả generated paths và alias path ngắn cho UI]
-    D --> D6A[Generate CV trả preview-ready payload để modal có thể mở ngay]
+    D --> D6A[Generate CV now materializes TXT DOCX PDF and cover-letter files inside the same request before returning]
+    D --> D6A2[Generate CV prompt now requests experience_summary + cover_letter so CV/portfolio/cover-letter texts stay consistent across artifacts]
     D --> D7[Details modal dùng normalized fields với fallback hiển thị]
     D --> D7A[Jobs filter labels and multi-select summaries use safe fallback text]
     D --> D7B[Jobs dropdowns close on outside click and avoid overlap with tighter width rules]
     D --> D7C[Job detail modal labels use safe fallback text to avoid undefined rows]
+    D --> D7C2[Jobs geo filters can derive country and region from raw location when enrichment rows are missing]
+    D --> D7C1[Job detail shows crawl-time LinkedIn applicant snapshot when available]
     D --> D7D[Shared modal close button uses fallback text when locale key is missing]
     D --> D7E[Job detail falls back to payload workplace and job insight fields for work model and employment type]
-    D --> D7F[Job detail can derive remote work model from fit-result remote-friendly signals]
+    D --> D7F[Work-model fallback ignores soft remote-friendly fit notes and instead trusts stronger payload evidence like Primary Location or in-person collaboration copy]
     D --> D7G[Employment type inference prefers contract over incidental full-time conversion wording]
     D --> D7H[Maintenance backfill scans payload workplace and insight fields so old rows recover missing normalization]
+    D --> D7I[LinkedIn Apply supports rehearsal_mode so Easy Apply can stop before final submit while still capturing questionnaire state]
+    D --> D7J[Questionnaire-context API returns pending field descriptors debug artifacts compact CV evidence and an LLM prompt template]
+    D --> D7K[Chrome apply logger defaults to backend port 8102 and captures label placeholder nearby prompt and select option hints]
+    D --> D7P[Extension heavy page hooks now run only on LinkedIn jobs/apply pages]
+    D --> D7Q[Page hooks suppress repeated low-signal realtime reconnect console noise before sync]
+    D --> D7R[Content-script sendMessage channel now uses cooldown-safe receiver-missing handling]
+    D --> D7L[Jobs list Easy Apply filtering uses an effective flag with validation and payload fallback instead of only normalized_easy_apply]
+    D --> D7M[Jobs UI now exposes Easy Apply Easy Apply Selected and Easy Apply Only controls and hides browser automation on non-Easy-Apply rows]
+    D --> D7N[Easy Apply apply_not_submitted outcomes with visible apply controls are classified as manual-review skip instead of hard failed automation runs]
+    D --> D7O[Easy Apply auto-flags those apply_not_submitted rows as manual_review_required to reduce repeated retries]
+    D --> D7S[Offsite apply capture/prefill-only outcomes are classified as skipped manual review instead of success]
+    D --> D7T[Typed batch maps offsite skipped to offsite_apply_manual_review and marks manual_review_required]
+    D --> D7U[Legacy offsite runs are re-enriched from stdout tail so old false-success rows display as skipped]
+    D --> D7V[Offsite reruns can reuse latest snapshot apply_url when LinkedIn offsite URL discovery is missing]
+    D --> D7W[Typed batch pre-resolves generated CVs for offsite job ids before triggering linkedin_offsite_apply]
+    D --> D7AH[Offsite schedules now default to offsite_mode=auto_submit_safe for best-effort final submit, with before/after-submit screenshots]
+    D --> D7X[Offsite platform detection includes paylocity and default platform allow-list now includes paylocity]
+    D --> D7Y[Offsite env profile mapping now includes address fields: line1 county state zip]
+    D --> D7Z[Offsite paylocity filler uploads hidden resume and cover-letter controls and logs selected artifact paths]
+    D --> D7AA[Offsite flow force-clicks Add Work History and maps role/company/date fields from CV parsing]
+    D --> D7AB[Forced offsite --job-ids mode bypasses remote and posted-date filters for deterministic debugging]
+    D --> D7AC[Offsite extraction captures role plus aria-haspopup and skips helper requiredInput controls to reduce false required-field misses]
+    D --> D7AD[Greenhouse hidden uploads use id-scoped resume and cover_letter selectors and treat successful set_input_files as valid across re-render]
+    D --> D7AE[Offsite combobox option lookup is id-scoped to react-select listboxes and no longer relies on global role=option fallbacks]
+    D --> D7AF[ITAR details textarea defaults to N/A unless ITAR eligibility choice is Other, with APPLY_ITAR_DETAILS override]
+    D --> D7AG[fill_meta stores manual_gate_meta and selected_choices for post-run diagnostics]
     D --> D8[Empty preview paths không còn bị coi nhầm là existing files]
     D --> D9[PDF fallback được tạo khi docx2pdf fail]
     D --> D10[Interview QA runtime now uses modular package under scripts/python/interview_qa]
@@ -125,11 +181,20 @@ flowchart TD
     D --> D12C[Generated headline and summary fields now count as artifact text even before file materialization]
     D --> D12E[Default CV detail and preview keep the fast read-only path unless repair is explicitly requested]
     D --> D12H[Preview modal shows repeated Loading placeholders while metadata and file text are still being assembled]
+    D --> D12I[Preview fetch waits one paint so the loading shell becomes visible and stale modal responses are ignored]
+    D --> D12J[Preview repair now queues background materialization so the request returns artifact text without waiting for DOCX or PDF rendering]
+    D --> D12L[Preview state label is derived from visible artifact paths and artifact text so empty path rows cannot still read as materialized]
+    D --> D12M[Generate CV responses and the frontend cache now reuse the backend preview state instead of forcing materialized on blank paths]
     D --> D12F[Frontend auto-repairs artifact text previews in background and refreshes paths when materialization finishes]
     D --> D12G[Background preview repair is guarded per job so repeated opens do not retrigger heavy materialization]
+    D --> D12K[Manual and nightly repair jobs still use the blocking materialization path outside the preview hot path]
     D --> D12D[Runbook 10.5 captures April 2026 troubleshooting for job detail and CV preview regressions]
     D --> D13[Automation seeds nightly generated artifact repair at 01:00 for the recent 3-day window]
     D --> D14[Automation seeds nightly garbage cleanup at 01:30 for backup and log retention]
+    D14 --> D14B[Garbage cleanup scans %LOCALAPPDATA% Temp job_ops roots and can enforce a size cap for job_ops_merge_tmp merge sqlite artifacts]
+    D --> D14C[Scheduler sync reconciles stale running and overdue pending automation_runs before re-registering jobs]
+    D --> D14D[Action runs and idle DB sync snapshot job_ops temp deltas so logs can identify the run and PID that expanded temp usage]
+    D --> D14A[Automation generic action runner now supports linkedin_easy_apply with explicit uploadable CV paths]
     D --> D15[Custom JD mode skips the DB window when Job IDs are not supplied]
     D15 --> D15A[Company website is used as the primary external crawl seed]
     D15 --> D15B[URLs inside JD text are collected as extra seeds]
@@ -143,6 +208,7 @@ flowchart TD
     E --> E1[Dashboard]
     E1 --> E2[Jobs]
     E2 --> E3[Applied Jobs]
+    E3 --> E3A[Applied Jobs page shows applied summary stats via /api/jobs/applied-stats]
     E3 --> E4[Reposts Analytics]
     E4 --> E5[Learning Quiz]
     E5 --> E6[Automation]
@@ -183,6 +249,9 @@ flowchart TD
     D --> D20F[Qwen lens is precomputed nightly and stored in SQLite snapshots]
     D --> D20G[Page load reads the stored snapshot and does not call Qwen in the request path]
     D --> D20H[Missing snapshots fall back to deterministic notes until the nightly job materializes them]
+    D --> D20I[Questionnaire-context reads only the recent tail of linkedin_extension.sync.log to keep apply review lightweight]
+    D --> D20J[Nightly trend snapshot refresh now computes expiry timestamps reliably and no longer fails on datetime helper NameError]
+    D --> D20K[Applied-stats repository cutoff uses UTC-safe date helpers so summary endpoint stays stable]
 %% 2026-04-10 extension for predict_interview_qa
 %% New additive outputs: company_dossier, interview_risk_map, confidence_breakdown, reliability_state.
 %% The existing three-tab UI and SQLite-backed prediction table remain unchanged.
@@ -203,6 +272,63 @@ flowchart TD
 %% 2026-04-12 update: Stack Trends reuses the same cached external source pattern as Language Trends so broader world context stays off the hot path.
 %% 2026-04-12 update: stale external market context now returns cached data immediately and refreshes in the background instead of blocking the analytics chart.
 %% 2026-04-12 update: trend AI snapshots are now refreshed nightly and persisted to SQLite so page load only reads the DB snapshot.
+%% 2026-04-12 update: automation completion profiles are incrementally updated from run logs and the Runs table reads ETA from SQLite snapshots.
+%% 2026-04-12 update: the schedules table now defaults to next_run_at ascending so operators see the nearest upcoming execution first.
+%% 2026-04-12 update: schedules now reuse completion profiles to estimate next-run duration and end time, and the form warns about likely overlap windows before save.
+%% 2026-04-12 update: the frontend shell now reads the shared full i18n map from AppRuntime so automation labels do not disappear after page splits.
+%% 2026-04-12 update: the Automation schedules table CSS now matches the 9 rendered columns so name and action cells no longer collapse from stale nth-child mappings.
+%% 2026-04-14 update: LinkedIn public job HTML parsing now stores public_apply_mode=onsite/offsite from topbar apply markers, and easy_apply normalization/filtering treats onsite as Easy Apply.
+%% 2026-04-14 update: /api/jobs easy_apply filtering also falls back to payload apply_url markers (linkedin.com, onsiteapply, easyapply) so historical rows without normalized_easy_apply backfill still stay visible.
+%% 2026-04-14 update: a lightweight requests-first easy_apply_probe backfills recent jobs outside the /api/jobs hot path, with browser probing kept only as fallback.
+%% 2026-04-14 update: Easy Apply buttons remain available on Easy-Apply rows without pre-rendered CV files because backend apply can auto-generate uploadable CV artifacts on demand.
+%% 2026-04-14 update: LinkedIn apply runtime now retries Playwright launch without the extension when extension startup closes early, and failed env-cookie auth clears cookies before login probing.
+%% 2026-04-14 update: Multi-job LinkedIn apply preserves requested job_ids order when pairing jobs with cv_paths, preventing silent CV/job mismatches in batch runs.
+%% 2026-04-14 update: LinkedIn apply logging now records per-job CV resolution fallback, parsed statuses, diagnostics, and trace-log paths for easier post-run review.
+%% 2026-04-14 update: questionnaire-context now includes similar_answer_memory collected from recent apply_field_input/change logs and injects it into llm_prompt_template.
+%% 2026-04-14 update: POST /api/linkedin/apply/questionnaire-draft/{job_id} now returns structured LLM answer drafts for operator review without changing final-submit safeguards.
+%% 2026-04-14 update: CV preview materialized-state now requires binary artifact paths (.pdf/.docx); TXT-only CV and cover-letter paths map to artifact_text.
+%% 2026-04-14 update: CV preview logs include explicit state-resolution diagnostics with binary-path candidates to speed up apply-run troubleshooting.
+%% 2026-04-14 update: LinkedIn Apply Logger now captures compact field answer values and richer field context for apply_field_input/change so similar-answer memory has reusable evidence.
+%% 2026-04-14 update: Logger input capture is scoped to Easy Apply flow with throttling, and popup now shows sync health metadata (pending count, last sync, last error).
+%% 2026-04-14 update: Added nightly closed_jobs_check pipeline and check_no_longer_accepting_jobs action with checkpoint windows (first run 10 days; subsequent runs 5 recent + 5 anchored from previous check date).
+%% 2026-04-14 update: Closed-marker hits are now auto-marked as priority_flag=closed_no_longer_accepting via job_application_tracking instead of immediate hard-delete.
+%% 2026-04-17 update: Added automate_easy_apply schedule pipeline that applies to a capped set of Easy Apply jobs nightly and persists applied_label=Automate Easy apply.
+%% 2026-04-17 update: Applied Jobs table renders applied_label under the Applied column for scheduled automation outcomes.
+%% 2026-04-17 update: Automation schedule defaults shift Learning ETL to 03:00 (GMT+7), the form adds an auto-shift helper to avoid overlap windows, and apply/ETL pipelines disable fit/CV toggles.
+%% 2026-04-18 update: Log viewer now opens by run_id when log_path is missing and renders fallback stdout/stderr from automation_runs detail_json.
+%% 2026-04-18 update: Manual linkedin_easy_apply writes automation_run_<id>_linkedin_easy_apply.log and persists detail_json.log_path for full run observability.
+%% 2026-04-18 update: Startup bootstrap now ensures a daily 03:30 Asia/Ho_Chi_Minh automate_easy_apply schedule with apply_limit=5 and target_languages=[python].
+%% 2026-04-18 update: automate_easy_apply candidate selection now uses schedule fit_cv_profile and optional language filter over job_programming_languages with validation fallback.
+%% 2026-04-18 update: Added monitor_automate_easy_apply script and PowerShell wrapper to watch nightly runs, collect questionnaire context, and store Qwen draft artifacts for review.
+%% 2026-04-18 update: Added Qwen 2.5 questionnaire instruction guide (docs/10.7) for evidence-only deterministic field-answer drafting.
+%% 2026-04-18 update: Added startup schedule consistency normalization to enforce learning_etl and automate_easy_apply cron windows and remove legacy filtered_jobs repair duplicates.
+%% 2026-04-18 update: Closed-jobs nightly check now supports bounded live LinkedIn URL checks (max_live_url_checks + timeout) and reports live-check counters in run summary.
+%% 2026-04-19 update: Easy Apply now defaults to Playwright fallback launch when CDP is unavailable (unless explicitly disabled), and automate_easy_apply schedule passes --allow-playwright-launch.
+%% 2026-04-19 update: Manual Automation button 'Schedule Automate Easy apply' now follows create-or-run behavior and triggers run-now for existing schedule id.
+%% 2026-04-19 update: Easy Apply debug listeners now guard page teardown exceptions and session bootstrap retries once without extension when login page is unreachable in extension mode.
+%% 2026-04-19 update: Easy Apply adds cookie-clear retry for login-unreachable redirect loops, and schedule consistency keeps only the newest automate_easy_apply schedule enabled.
+%% 2026-04-19 update: Automation schedule editor now exposes automate_easy_apply job_filters (country/work model/employment type/languages/etc) and preserves them on pause/resume updates.
+%% 2026-04-19 update: Added linkedin_offsite_apply automation action to capture and semi-auto fill offsite application forms (Greenhouse/Lever) without submitting, persisting form snapshots into SQLite for review.
+%% 2026-04-20 update: Offsite apply now decodes LinkedIn safety/go wrapper URLs (linkedin.com/safety/go/?url=...) to reach the real external ATS link deterministically.
+%% 2026-04-20 update: Offsite apply runner supports forcing a specific job id list via --job-ids for deterministic debugging of offsite flows.
+%% 2026-04-22 update: Offsite --job-ids mode now bypasses remote/date filters, so forced IDs are not dropped by candidate filtering.
+%% 2026-04-22 update: Offsite paylocity filler now uploads resume/cover through hidden file inputs and records selected upload artifact paths in snapshot metadata.
+%% 2026-04-22 update: Offsite filler now force-clicks Add Work History and maps work-history values from parsed CV entries before final missing-required snapshot.
+%% 2026-04-22 update: Offsite extraction now records role and aria-haspopup while skipping helper requiredInput controls that previously produced false missing-required IDs.
+%% 2026-04-22 update: Greenhouse hidden file inputs (#resume, #cover_letter) are now handled as first-class upload targets and resilient to ATS input re-rendering.
+%% 2026-04-22 update: Offsite combobox selection is now scoped to react-select id-specific listboxes; global option scraping is no longer used for id-backed controls.
+%% 2026-04-22 update: ITAR conditional textarea handling now writes N/A unless Other is selected, with APPLY_ITAR_DETAILS as optional detailed override.
+%% 2026-04-19 update: Easy Apply no longer keeps browser open by default; keep-open is now opt-in via flag/env.
+%% 2026-04-19 update: Scheduler run env forces LINKEDIN_KEEP_BROWSER_OPEN=0, launch fallback retries after stale Singleton lock cleanup, and no-control-only apply batches are classified as skipped.
+%% 2026-04-19 update: Easy Apply auto-flags missing-control rows as manual_review_required and candidate selection excludes high-repeat companies for this pattern.
+%% 2026-04-19 update: Apply diagnostics detect authwall/signup as login walls, job URL probing prefers canonical jobs/view/<id>/ before public tracking variants, and no-controls skip does not mask auth walls.
+%% 2026-04-19 update: Easy Apply profile dir is configurable via LINKEDIN_PROFILE_DIR (fallback .pw-profile), and cookie auth normalizes quoted JSESSIONID and probes via APIRequestContext for redirect/status observability.
+%% 2026-04-19 update: Easy Apply session bootstrap now uses bounded nav timeout on cookie-confirm/login probes, skips extension retry when unattended login wait is disabled, and classifies login-gated runs as skipped (linkedin_login_required).
+%% 2026-04-19 update: Added operator script clear_easy_apply_auto_flags.py to clear auto-flagged manual_review blocks after session/login fixes.
+%% 2026-04-19 update: Easy Apply adds a pre-Next required-field gate using apply_state_snapshot and bounded recovery, and required ARIA radiogroup/fieldset blocks are now included in missing-field diagnostics.
+%% 2026-04-19 update: Easy Apply now captures per-step screenshot/html artifacts, logs visible dialog buttons each step, detects repeated non-progress signatures, and treats inline-error/star-marked numeric prompts as required for recovery.
+%% 2026-04-19 update: Easy Apply now persists step and field memory into SQLite, applies DB-memory hints before LLM, and injects a capped Qwen 2.5 instruction excerpt plus DB answer memory into LLM recovery prompts.
+%% 2026-04-19 update: Strict CV mode removes hardcoded identity fallbacks and disables select-first-option guessing; nightly automate_easy_apply can regenerate per-job CV artifacts and require generated paths only.
 
     B4E[Stack Trends]
     B4E --> B4E1[90-day stack group trend lines]
@@ -212,3 +338,326 @@ flowchart TD
     B4E --> B4E5[Crawl recommendations for thin buckets]
     B4E --> B4E6[Qwen lens is refreshed at night and read from SQLite on page load]
     B4E --> B4E7[Crawl hints identify which missing evidence would strengthen the stack story]
+    D --> D21[Standalone OpenAI gateway credential smoke test loads .env and probes /v1/responses]
+    D21 --> D21A[Used after restart to reproduce credential failures without opening VS Code]
+    D21 --> D21B[Separates missing OPENAI_API_KEY from other gateway failures]
+    D --> D22[LinkedIn Easy Apply now allows up to 20 step transitions and recognizes Submit Send Review and Proceed aliases]
+    D22 --> D22A[apply_action_click traces record the exact progress path for later troubleshooting]
+    D22 --> D22B[Rehearsal mode still stops before the final submit click]
+    D --> D23[Easy Apply dataset export writes artifacts/easy_apply_dataset JSONL from sync log trace log and apply_debug]
+    D23 --> D23A[Default exports redact emails phone and cookie tokens; allow-sensitive is local-only]
+    D --> D24[Nightly automate_easy_apply schedule runs linkedin_easy_apply for up to 5 candidates and persists applied_label]
+    D24 --> D24A[Selection uses persisted easy_apply flags, fit threshold, and excludes applied/manual-review rows]
+    D24 --> D24B[Apply success writes applied_label so Applied Jobs UI shows Automate Easy apply]
+    D24 --> D24C[Nightly seed enforces daily 03:30 run with apply_limit=5 and Python target language]
+    D24 --> D24D[Manual apply path now persists log_path and writes full run log file]
+    D24 --> D24E[Automation Log Viewer falls back to run_detail stdout/stderr when no log_path is stored]
+    D24 --> D24F[Scheduler/background run env forces keep-browser-open off to avoid profile lock carry-over]
+    D24 --> D24G[No-control Easy Apply rows are auto-flagged manual_review_required to prevent repeated retries]
+    D24 --> D24H[Company-level cooldown excludes repeated missing-control candidates from auto-apply selection]
+    D24 --> D24I[If all statuses are non-eligible controls, run is classified as skipped instead of failed]
+    D24 --> D24J[If session bootstrap/login prerequisites fail, run is classified as skipped with reason linkedin_login_required]
+    D24 --> D24K[Nightly automate_easy_apply can regenerate per-job CV artifacts before apply]
+    D24K --> D24L[CV planning requires generated artifact paths and avoids full_doc_stlye fallback files]
+    D --> D25[Night watch monitor polls linkedin_easy_apply runs and stores run plus questionnaire artifacts]
+    D25 --> D25A[For review-signal jobs it calls questionnaire-context and questionnaire-draft with Qwen 2.5]
+    D25 --> D25B[Artifacts are written under artifacts/easy_apply_night_watch timestamped folders]
+    D25 --> D25C[Optional dataset prebuild reuses prior sync logs before nightly monitoring starts]
+    D --> D26[Startup schedule consistency normalizes ETL and Easy Apply cron windows and removes legacy filtered_jobs repair overlap rows]
+    D --> D27[Closed jobs nightly check uses payload and debug HTML markers plus bounded live LinkedIn URL verification]
+    D27 --> D27A[Run summary exposes live_url_checks live_url_errors and live_url_closed_hits]
+    D27 --> D27B[ETA uses conservative floor from live-check budget to avoid unrealistically short overlap windows]
+    D --> D28[Nightly Easy Apply keeps CDP-first attach but auto-falls back to Playwright launch when CDP endpoint is unavailable]
+    D28 --> D28A[Schedule pipeline always forwards --allow-playwright-launch to reduce unattended hard failures]
+    D28 --> D28B[Listener callbacks guard TargetClosed teardown paths to avoid noisy callback failures]
+    D28 --> D28C[Session init retries once without extension when login bootstrap fails in extension fallback mode]
+    D28 --> D28D[Session init retries once after clear-cookies when LinkedIn login bootstrap is unreachable due redirect loops]
+    D28 --> D28F[Playwright profile dir can be pinned with LINKEDIN_PROFILE_DIR and falls back to .pw-profile]
+    D28 --> D28G[Easy Apply snapshots required UI fields before each Next click and blocks progress when required fields remain missing]
+    D28 --> D28H[Easy Apply stores step-by-step artifacts and button traces and halts early when the flow signature stops progressing]
+    D28 --> D28I[Easy Apply persists field and step memory in SQLite and reuses DB hints before calling Qwen-guided recovery]
+    D28 --> D28J[Strict CV mode removes hardcoded fallback identity values and blocks select-first-option guessing]
+    D28J --> D28K[DB memory retrieval filters noisy heuristic_select_first_option sources before recovery]
+    D28J --> D28L[Candidate profile hints can be sourced from env, DB memory, and lightweight CV master extraction (cached)]
+    D --> D29[Startup consistency keeps only one enabled automate_easy_apply schedule and auto-disables older duplicates]
+    D28 --> D28E[Scheduler path no longer waits default keep-browser-open window; hold-open is opt-in]
+    E6 --> E6A[Manual button Schedule Automate Easy apply now runs immediately via create-or-run schedule logic]
+
+    D --> D20AI[Learning Quiz can crawl an AI topic knowledge pack via POST /api/learning/crawl-ai from a single webpage (Python fetch + heuristic Q/A extraction), ranked by CV overlap (EN-only; VI blank fallback)]
+    D --> D20AID[Backend ensures a daily learning_etl schedule (03:00 GMT+7) to crawl AI knowledge automatically; optional VI translation can run after crawl]
+
+    D --> D21[Apply pipeline serialized via on-disk lock: overlapping linkedin_easy_apply/linkedin_offsite_apply runs wait instead of skipping]
+    D --> D22[Questionnaire seed API persists operator-approved Q&A into linkedin_easy_apply_field_memory]
+    D --> D22A[Questionnaire review queue API tails apply_state_snapshot and lists missing required fields + seeded-memory coverage]
+    D --> D23[Seed payload stores deterministic question embeddings for semantic fallback]
+    D --> D24[Easy Apply DB hint lookup now supports apply_field_seed plus semantic retrieval]
+    D --> D25[Qwen instruction explicitly steers select/radio/combobox option decisions]
+    D --> D26[Offsite filler uses seed memory plus Qwen option-resolution for required select/radio fields]
+
+    D --> D27[Continuous recovery loop per blocked step: snapshot -> DB hints -> LLM actions -> Playwright execute -> resnapshot]
+    D --> D28[LLM prompt now ingests latest extension apply_state_snapshot for the same job]
+    D --> D29[RAG candidates are built per field from persisted answer memory and passed into the LLM prompt]
+    D --> D30[LLM returns structured field_actions with action intent: fill select check combobox]
+    D --> D31[Playwright executes by control type and iterates until progress to Next or Submit]
+    D --> D32[Extension now emits apply_dom_bundle with bounded form HTML CSS and element catalog]
+    D32 --> D32A[Element catalog classifies controls: button dropdown textarea radio checkbox combobox text]
+    D32 --> D32B[Payload includes question_text labels options required and disabled flags for each control]
+    D32 --> D32C[DOM bundle emission is hash-deduplicated and interval-throttled to limit sync overhead]
+    D --> D33[Easy Apply LLM prompt ingests latest dom_bundle per job so Qwen maps answer + action type from page structure]
+    D33 --> D33A[Background payload compaction preserves larger safe limits for form_html and form_css keys]
+
+%% 2026-04-20 Easy Apply robustness update
+R20["Easy Apply: radio missing detection now group-checked based"]
+R21["Easy Apply: deterministic radio fallback for Yes/No compliance prompts"]
+R22["Easy Apply: required URL autofill via label/prompt heuristics (LinkedIn/GitHub/Portfolio)"]
+R23["Easy Apply: recovery budget increased 2->5 for long forms"]
+D7 --> R20
+R20 --> R21
+R21 --> R22
+R22 --> R23
+
+%% 2026-04-21 runtime hygiene update
+R24["Project interpreter pinned to .venv\\Scripts\\python.exe"]
+R25["Workspace env manager switched to venv mode"]
+R26["One-time clean .venv rebuild (py3.12 + full dependency reinstall)"]
+R27["Easy Apply flow test passes on rebuilt venv"]
+D7 --> R24
+R24 --> R25
+R25 --> R26
+R26 --> R27
+
+%% 2026-04-21 jobs bulk apply update
+R28["Jobs page: single Apply Selected button for multi-select batches"]
+R29["Apply modal shows easy/offsite counts and adds shutdown when complete option"]
+R30["/api/linkedin/apply accepts auto_route_by_type + shutdown_when_completed"]
+R31["Typed batch orchestration: Easy Apply run then Offsite Apply run with aggregated result payload"]
+R32["Manual apply flow can request OS shutdown after completion via AutomationService.request_shutdown_when_idle"]
+
+%% 2026-05-16 numeric blocker policy update
+R33["Easy Apply numeric blocker defaults: env-driven daily/hourly EUR rates plus safe backend-injected defaults when env is missing"]
+
+%% 2026-05-16 apply analytics update
+R34["Analytics: apply-daily-performance endpoint + UI subtab to track Easy Apply/offsite/batch daily effectiveness"]
+R120["Analytics: apply-batch-performance endpoint for batch-level effectiveness (split by action type)"]
+R121["Apply batch routing honors apply_batch_items.route_override when present"]
+R122["Automation run detail_json preserves schedule/batch metadata across progress updates"]
+R123["Apply batch CV regeneration only runs for Easy Apply subset"]
+R124["Schedule PATCH uses exclude_unset to prevent resets"]
+R129["Schedule PATCH merges missing fields with existing row (including crawl_config shallow merge)"]
+R125["Offsite apply success requires submitted outcome (capture-only => skipped)"]
+R126["Apply batch attempts table tracks per-job outcomes to avoid repeating the same jobs on subsequent runs"]
+R127["Apply batch gap-report endpoint summarizes offsite manual-review reasons + missing required ids"]
+R128["Offsite runner captures entry + final evidence artifacts and exposes paths in job_results"]
+R130["Offsite runs default to persistent profile to resolve external apply URLs via LinkedIn (can be disabled per schedule)"]
+R131["Offsite runner enables SQLite WAL + busy timeout to reduce db locked failures"]
+R132["Apply triggers are queued as pending when another apply run is active; service auto-releases next pending run on completion"]
+R133["API: /api/runs/reconcile-stale repairs stuck running/pending runs so queues can progress"]
+R134["Offsite mode auto_submit_safe attempts final submit on whitelisted ATS when no gates/recaptcha and confirmation is detected"]
+R135["Offsite auto_submit_safe can walk simple multi-step flows (Next/Continue) and re-fill required fields before final submit"]
+R136["micro1 flow uses deterministic placeholder-based filling to reduce LLM calls and avoid false-ready states"]
+R139["micro1 flow falls back to DB field memory for phone/linkedin values when ApplyProfile is incomplete"]
+R137["Apply batch: crawl_config.rerun_attempted disables apply_batch_attempts skipping for iterative reruns"]
+R138["Apply batch: offsite_require_resume_upload allows offsite CV regeneration when resume upload is required"]
+D7 --> R28
+R28 --> R29
+R29 --> R30
+R30 --> R31
+R31 --> R32
+R34 --> R120
+R31 --> R121
+R31 --> R122
+R31 --> R123
+D7 --> R124
+D7 --> R129
+R31 --> R125
+R31 --> R126
+R34 --> R127
+R31 --> R128
+R31 --> R130
+R31 --> R131
+R31 --> R132
+R31 --> R133
+R31 --> R134
+R134 --> R135
+R135 --> R136
+R136 --> R139
+R31 --> R137
+R31 --> R138
+
+%% 2026-04-21 easy apply failure observability upgrade
+R33["Easy Apply writes structured failure_context for non-success runs"]
+R34["failure_context captures stage reason error type visible button labels and missing-required ids"]
+R35["Flow now classifies submit_click_failed and next_click_failed explicitly"]
+R36["Entry failures include immediate debug artifacts and structured context"]
+R37["Automation parser emits diagnostics from failure_context for faster root-cause triage"]
+D7 --> R33
+R33 --> R34
+R34 --> R35
+R35 --> R36
+R36 --> R37
+
+%% 2026-04-21 jobs selection and batch cv mode update
+R38["Jobs table supports Shift+click range checkbox selection on current page"]
+R39["Range selection still respects CV selection mode constraints (ready-only vs missing-only)"]
+R40["Batch Apply modal removes manual CV picker"]
+R41["Batch Apply sends cv_paths empty so backend generates/resolves CV per Easy Apply job"]
+D7 --> R38
+R38 --> R39
+R39 --> R40
+R40 --> R41
+
+%% 2026-04-22 backend root metadata update
+R42["Backend GET / returns lightweight API metadata instead of 404"]
+R43["Browser Accept text/html on GET / redirects to the configured frontend URL"]
+R44["Root payload links frontend_url health_url and docs_url without DB or LLM work"]
+R45["GET /favicon.ico returns 204 to avoid browser-only 404 noise"]
+R46["run_job_ops_all output separates Open UI API root and API health URLs"]
+R47["API smoke tests cover backend root metadata browser redirect and favicon"]
+C2 --> R42
+R42 --> R43
+R43 --> R44
+R44 --> R45
+R45 --> R46
+R46 --> R47
+
+%% 2026-04-22 jobs range selection and daily limit handling update
+R48["Jobs selection allows mixed CV-ready and needs-CV rows"]
+R49["Generate Selected CV filters to selected rows that still need CV artifacts"]
+R50["Shift range captures the previous anchor before React state updates"]
+R51["Apply Selected modal opens for mixed batches after range selection"]
+R52["daily_submission_limit returns blocked_reason without setting manual_review_required"]
+R53["Frontend explains LinkedIn daily submission limit instead of generic apply failure"]
+R54["10 real local UI loops validated Jobs shift range and Apply Selected modal without final submit"]
+D7 --> R48
+R48 --> R49
+R49 --> R50
+R50 --> R51
+R51 --> R52
+R52 --> R53
+R53 --> R54
+
+%% 2026-04-22 automation apply outcome observability update
+R55["Manual linkedin_easy_apply stores statuses job_results and blocked_reason in automation_runs detail_json"]
+R56["daily_submission_limit-only manual Easy Apply runs are classified as skipped"]
+R57["Legacy Easy Apply runs are enriched from stored stdout for API and Automation UI display"]
+R58["Automation Runs shows blocked-reason badges and per-job Easy Apply outcomes"]
+R59["Extension sync ignores chrome-extension invalid noise before setting manual_review_required"]
+D7 --> R55
+R55 --> R56
+R56 --> R57
+R57 --> R58
+R58 --> R59
+
+%% 2026-04-22 documentation consolidation for offsite hybrid path
+R60["10.8 docs package details offsite hybrid flow: heuristic -> seed memory -> Qwen choice -> manual review boundary; Qwen guidance uses 10.7 + 10.9 excerpts"]
+R61["10.8 workflow clarifies reCAPTCHA detection path and current note persistence scope"]
+D7 --> R60
+R60 --> R61
+%% 2026-04-22 docs maintenance: 10.8 workflow mermaid label token `results[]` fixed to `results list`
+%% 2026-04-22 docs maintenance: 10.8 label hardened to quoted node text `stdout summary (results list)` for renderer compatibility
+
+%% 2026-04-22 offsite qwen playwright copilot update
+R62["Offsite apply now uses page understanding before fill when page state is blocked modal-heavy or not yet form-ready"]
+R63["Unresolved fields can call Qwen for structured action plans with selector strategy and Playwright-safe actions"]
+R64["Failed field actions can trigger one Qwen recovery and re-plan pass using refreshed DOM state"]
+R65["Required unresolved free-text fields can use guarded Qwen drafting with MANUAL_REVIEW fallback"]
+R66["Structured compression keeps offsite prompts small by sending page and field summaries instead of raw HTML"]
+D7 --> R62
+R62 --> R63
+R63 --> R64
+R64 --> R65
+R65 --> R66
+
+%% 2026-04-22 hybrid heuristic decision and scheduled apply batch update
+R67["Offsite field-plan schema records heuristic_decision used overridden and reason"]
+R68["Qwen distinguishes use_llm_override from use_llm_generate while preserving legacy use_llm_inference"]
+R69["LLM field-plan confidence below 0.6 is normalized to manual review before Playwright execution"]
+R70["linkedin_apply_batch schedule pipeline runs fixed job-id batches after optional CV regeneration and uses count hints for ETA"]
+R71["Scheduled apply batch splits Easy Apply and offsite actions serially then requests shutdown once after completion"]
+D7 --> R67
+R67 --> R68
+R68 --> R69
+R69 --> R70
+R70 --> R71
+
+%% 2026-04-23 qwen-guided offsite entry navigation update
+R72["Offsite page-entry schema supports Qwen click or navigate actions before manual review"]
+R73["LinkedIn nav/search inputs are ignored so they no longer masquerade as real application fields"]
+R74["Unknown-platform pages can use generic field fill when real application controls are visible"]
+R75["Qwen page-entry calls stay conditional on heuristic CTA entry failing to expose a form"]
+D7 --> R72
+R72 --> R73
+R73 --> R74
+R74 --> R75
+
+%% 2026-04-23 offsite page-entry timeout and manual-gate classification update
+R76["Qwen page understanding uses a dedicated local-model timeout defaulting to 45 seconds"]
+R77["Page-understanding failures persist NEEDS_RETRY diagnostic plans instead of disappearing"]
+R78["Mandatory account login OTP or CAPTCHA gates become needs_manual_review"]
+R79["LinkedIn Easy Apply routes reached by offsite execution become needs_manual_review misroute notes"]
+R75 --> R76
+R76 --> R77
+R77 --> R78
+R78 --> R79
+
+%% 2026-05-16 offsite stability + triage observability update
+R80["Offsite snapshot inserts retry on transient SQLite locks to avoid aborting long batches"]
+R81["Offsite Qwen system guidance includes bounded CTA/action decisioning excerpt from 10.9"]
+R82["Automation logs a compact failed-run summary with log_path and stdout tail for faster diagnosis"]
+R79 --> R80
+R80 --> R81
+R81 --> R82
+
+%% 2026-05-16 persisted apply batches update
+R83["Jobs Apply modal generates a stable batch_uid and allows reorder/remove before executing"]
+R83A["Batch name defaults to batch_uid unless overridden"]
+R84["Batch can be saved to SQLite via /api/apply-batches with ordered job ids and optional route overrides"]
+R85["Automation schedules can resolve crawl_config.apply_batch_id to run a saved batch in order (linkedin_apply_batch / automate_easy_apply)"]
+R86["Schedule run-now can enqueue async to avoid UI blocking during long batch execution"]
+R87["Per-job CV generation uses lock files + subprocess timeouts to avoid duplicate render stalls"]
+R88["Run-now guarded by schedule-level lock to prevent duplicate overlapping runs per schedule id"]
+R89["Automation UI shows apply success stats from /api/automation/apply-success-stats for Easy Apply + Offsite"]
+R90["Easy Apply runner prefers Easy Apply modal dialogs and dismisses messaging overlays to reduce false next-button failures"]
+R91["Offsite semi-auto runs are reported as success with requires_manual_review instead of skipped; stats endpoint tolerates legacy detail_json shapes"]
+R92["Easy Apply evidence capture screenshots target the active modal dialog (not the page top) to preserve stuck-step context"]
+R82 --> R83
+R83 --> R83A
+R83A --> R84
+R84 --> R85
+R85 --> R86
+R86 --> R87
+R87 --> R88
+R88 --> R89
+R89 --> R90
+R90 --> R91
+R91 --> R92
+
+%% 2026-05-25 offsite micro1 submit hardening + batch verification
+R93["Offsite auto_submit_safe now recognizes final Apply CTA in addition to submit/finish variants"]
+R94["Offsite field extraction adds synthetic data-offsite-field-id markers so no-id/no-name inputs remain fillable"]
+R95["Micro1 quick-fill now covers deterministic screening text/radio answers with prompt sanitization and keeps confirmation-gated submit semantics"]
+R96["Batch verification B20260524-b2e2ad (run 799) completed with manual-review-only outcomes; gap-report now highlights dominant blockers (apply_form_not_opened/missing_apply_url/login_gate)"]
+R97["Offsite runner now enforces bounded navigation plus default Playwright action timeouts to fail fast on hung ATS pages and prevent whole-batch stalls"]
+R98["Harness verification rerun for B20260524-b2e2ad confirmed Ashby submissions on 7446/7442/7897/7535 while non-Ashby login-gated/offsite-missing cases remain manual-review"]
+R99["Schedule pipeline now supports offsite_via_linkedin/offsite_nav_timeout_seconds/offsite_action_timeout_ms and forwards them into linkedin_offsite_apply args"]
+R100["CV renderer now auto-highlights app-improvement wording (enhance/improve family) with bold + app_impact color, preserving existing tag-based styling"]
+R101["CV renderer now also auto-highlights numeric impact metrics (~N% / Nx), headline includes Full-stack Developer, and regenerated documents+showcase CV assets are synchronized"]
+R102["Apply batch planner now falls back to canonical uploadable CV artifacts for Easy Apply rows when per-job CV is missing (and generated-CV is not required); batch B20260525-6ffe7d completed 20 attempted jobs with easy+offsite sequencing"]
+R103["Automation run UI status normalization now maps cancelled explicitly, preventing cancelled runs from rendering as Unknown"]
+R104["Offsite runner now persists reusable failure knowledge in SQLite (missing_apply_url/apply_form_not_opened/ready_to_submit_blocked/candidate_linkedin_url) and injects it into Qwen page-understanding prompt context"]
+R105["When Qwen page planning fails (ConnectionError), offsite runner applies deterministic candidate scoring fallback to continue safe click/navigate progression instead of empty-plan dead-end"]
+R106["Showcase cv_generation_excerpt now includes a formal improvement rubric: metric definition, baseline, change, post-change result, and explicit percentage formulas for CV claims"]
+R92 --> R93
+R93 --> R94
+R94 --> R95
+R95 --> R96
+R96 --> R97
+R97 --> R98
+R105 --> R106
+R98 --> R99
+R99 --> R100
+R100 --> R101
+R101 --> R102
+R102 --> R103
+R103 --> R104
+R104 --> R105
