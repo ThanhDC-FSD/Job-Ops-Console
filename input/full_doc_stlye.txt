@@ -1,0 +1,64 @@
+<bold><center>DINH CONG THANH</center></bold>
+Senior AI Workflow Engineer | Full-stack Developer | AI Automation Engineer | Production RAG & Orchestration
+thanhdc.dev@gmail.com | (+84) 96 552 8181 | DoB: 05/10/1989 | Hanoi, Vietnam
+<bold><blue>Showcase URL:</blue></bold> https://github.com/ThanhDC-FSD/Job-Ops-Console/tree/showcase
+<bold><green>Professional Summary</green></bold>
+- Production-oriented engineer focused on <orange>AI workflow orchestration</orange>, reliable automation, and evidence-grounded outputs (RAG + validation) on CPU-friendly stacks.
+- Designed and operationalized end-to-end pipelines: ingestion/normalization, retrieval + rerank, quality gates, deterministic fallbacks, and artifact rendering (TXT/DOCX/PDF) with auditable metadata.
+- Strong delivery in enterprise environments: CI/CD automation, migration tooling, secure APIs, and resilient integrations with measurable efficiency gains.
+<bold><green>Work Experience</green></bold>
+<bold>Senior Full Stack Developer</bold> | Bosch Global Software Vietnam
+<italic>Mar 2022 - Present</italic>
+- Orchestrated an HP ALM → GitHub migration and delivery automation pipeline (Java, Maven, RTC integrations, Jenkins), preserving history/metadata and reducing manual release steps by ~60% while improving traceability.
+- Automated CI/CD workflows (Jenkins Groovy, Docker, docker-compose, Nginx) with rollback patterns, cutting deployment turnaround time by ~30% and reducing repeatable release errors.
+- Implemented resilient data workflows for PostgreSQL (SQLAlchemy/Alembic), including daily automated backups (pg_dump + restore validation) to improve recovery confidence and operational reliability.
+- Productionized secure API services (<orange>Python</orange> <orange>FastAPI</orange>, SQLAlchemy) with enterprise authentication (Azure MSAL, JWT, cryptography), enabling controlled access to internal systems.
+- Operationalized real-time workflow feedback using WebSockets and structured event logging, reducing time-to-diagnose for runtime issues by ~25% during active development cycles.
+- Built and hardened automation assistants: prompt template standardization (React + TypeScript + Zod), grammar enhancement (LanguageTool + spaCy), and tool integrations that improved consistency and reduced rework.
+- Delivered RAG-enabled internal tooling (FastAPI, LangChain, Chroma) with practical retrieval + recommendation workflows to surface actionable knowledge and reduce time spent searching documentation.
+- Built modern knowledge-assisted workflow tooling with <orange>React</orange>, <orange>FastAPI</orange>, MCP patterns, <orange>LangChain</orange>, and <orange>Chroma</orange> to combine project context, retrieval, and proactive risk guidance in a single operator flow, reducing issue-triage and context-gathering time by ~35%.
+- Built an LLM-assisted slide-generation workflow with <orange>Python</orange>, Mermaid, and an Angular-based UI to turn prompts and structured inputs into presentation-ready outlines, diagrams, and editable content, reducing manual first-draft slide preparation time by ~70% while improving output consistency across iterations.
+<bold><italic>Personal Project</italic></bold> | Render CV Automation and MP4 Processing & Translation Platform
+- Orchestrated an end-to-end <orange>AI automation</orange> platform for job applications: LinkedIn crawling, normalization, triage queues, CV/JD fit evaluation, and assisted apply workflows in a single operational dashboard.
+- Implemented a production-style <orange>RAG</orange> pipeline on SQLite: embedding + hybrid retrieval (semantic/keyword/metadata), reranking, evidence mapping, and prompt contracts to keep outputs grounded and auditable.
+- Added reliability gates and deterministic fallbacks (no-op rewrite detection, coverage deltas, constraint filters, mandatory cover-letter enforcement), improving stability on CPU-only hardware and reducing failed runs by ~40%.
+- Automated document workflows to render tagged plain text into consistent <orange>DOCX/PDF</orange> artifacts (python-docx, docx2pdf), reducing manual formatting time by ~80% and improving consistency across versions.
+- Built automation pipelines for media processing: subtitle extraction, multilingual translation, and speech-to-text (faster-whisper, Transformers, Google Translate API), improving turnaround time for content localization by ~50%.
+- Delivered operational APIs and dashboards (<orange>FastAPI</orange>, <orange>Uvicorn</orange>, <orange>Pydantic</orange>, <orange>React</orange>, <orange>Vite</orange>) with analytics and stateful UX (D3 Geo, TopoJSON) to support high-throughput review of large job datasets.
+- Implemented a pragmatic local CI/CD loop (scheduled deployments, sanitized publisher repo, local bare Git remote) to continuously ship updates while isolating runtime secrets.
+<bold>Senior Java Developer and Oracle Middleware Engineer</bold> | GTEL ICT
+<italic>Sep 2020 - Feb 2022</italic>
+- Directed backend delivery for a national-scale system (Spring Boot, Spring Security), improving service robustness, access control, and operational stability.
+- Implemented BI and <orange>ETL</orange> workflows (Oracle OBIEE, ODI), enabling reliable analytics pipelines and maintainable fact/dimension models for reporting.
+- Optimized integrations with SQL Server using caching (EhCache) and schedulers, reducing latency and improving steady-state performance for batch workloads.
+<bold>Java Developer</bold> | FPT Software
+<italic>Jun 2019 - Sep 2020</italic>
+- Implemented data ingestion automation for Oracle/PostgreSQL APIs, hardening large Excel imports with validation and error taxonomies to reduce operational incidents.
+- Automated repeatable test/data workflows (Winium), improving throughput and reducing manual QA effort for regression tasks.
+<bold>Java Developer (Contractor)</bold> | Tien Phong Bank
+<italic>Feb 2019 - Jun 2019</italic>
+- Automated a Data Exchange BOT (Java Swing, Selenium) for scheduling, reporting (PDF/TXT), and database synchronization, reducing manual operational steps by ~70%.
+- Implemented resilient ESB components (ESQL) to improve stability of card-service integrations and reduce recurring processing failures.
+<bold>Java Developer</bold> | CODEGYM Vietnam
+<italic>Aug 2018 - Feb 2019</italic>
+- Delivered backend services (Spring Boot) and REST APIs with maintainable data models, improving delivery consistency across multiple training products.
+- Implemented MySQL-backed persistence with unit tests and code review practices to improve correctness and reduce regressions.
+<bold><green>Technical Skills</green></bold>
+- <bold>AI Workflow / RAG:</bold> RAG pipelines, hybrid retrieval, reranking, evidence mapping, prompt contracts, validation gates, deterministic fallbacks, LangChain, Chroma, <orange>FAISS</orange>, sentence-transformers, qwen2.5 (offline gateway)
+- <bold>Workflow Automation:</bold> Orchestration patterns, schedulers (APScheduler/cron), job queues, browser automation (Playwright), data normalization, fit scoring, integration reliability
+- <bold>Languages:</bold> <orange>Java</orange>, <green>Python</green>, <orange>JavaScript (ES6+)</orange>, <orange>TypeScript</orange>, SQL
+- <bold>Backend:</bold> <orange>FastAPI</orange>, Starlette, SQLAlchemy, <orange>Pydantic</orange>, Uvicorn, Flask, Django, Spring Boot
+- <bold>Data / ETL:</bold> pandas, numpy, openpyxl, XlsxWriter, ExcelJS, ETL pipelines, Oracle ODI/OBIEE
+- <bold>DevOps / Reliability:</bold> Jenkins (Groovy), Docker, docker-compose, Nginx, Linux, rollback strategies, backup/restore validation
+- <bold>Databases:</bold> PostgreSQL, SQLite, Oracle, SQL Server, MySQL
+- <bold>Frontend (Supportive):</bold> <orange>React</orange>, Vite, HTML5, CSS3, Angular, D3 Geo, TopoJSON, world-atlas
+- <bold>Security:</bold> Azure MSAL, JWT, passlib, cryptography, Spring Security
+- <bold>Others:</bold> httpx, requests, Jinja2, python-docx, docx2pdf, python-pptx
+<bold><green>Core Competencies</green></bold>
+- AI Workflow Orchestration and Automation Engineering
+- Production RAG Pipelines and Evidence-Grounded Generation
+- Validation Workflows, Reliability Gates, and Deterministic Fallbacks
+- CI/CD Automation, Migration Tooling, and Operational Hardening
+- ETL/Data Workflows, Analytics, and High-Throughput Processing
+- Secure API Design and Enterprise Authentication
+- Cross-Functional Delivery, Ownership, and Collaboration
