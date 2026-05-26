@@ -349,6 +349,66 @@ How to defend it:
 
 - `I measured the total processing path for similar media inputs before and after automation, including the manual handoff work that the pipeline removed.`
 
+### 7. Issue Triage And Context Gathering Reduced By ~35%
+
+Example CV wording:
+
+- `... reducing issue-triage and context-gathering time by ~35%.`
+
+How to define it:
+
+- `issue-triage and context-gathering time` means the operator time needed to collect relevant project context, identify likely risks, and form an actionable next-step view before starting execution
+
+What changed:
+
+- combined UI workflow instead of fragmented tools
+- retrieval over existing project knowledge
+- MCP-style tool access pattern for structured context fetches
+- risk surfacing and mitigation hints in the same operator flow
+
+How to calculate:
+
+- baseline example:
+  - `20 minutes average to gather context and produce a first triage view`
+- after the workflow improvement:
+  - `13 minutes`
+- formula:
+  - `(20 - 13) / 20 * 100 = 35%`
+
+How to defend it:
+
+- `The improvement was measured as operator time to reach a usable first triage view. The gain came from reducing context switching and consolidating retrieval, guidance, and workflow signals into one path.`
+
+### 8. First-Draft Slide Preparation Reduced By ~70%
+
+Example CV wording:
+
+- `... reducing manual first-draft slide preparation time by ~70% while improving output consistency across iterations.`
+
+How to define it:
+
+- `first-draft slide preparation time` means the time required to turn prompts or structured notes into a usable initial slide outline with diagrams and editable content blocks
+
+What changed:
+
+- prompt-to-outline generation
+- Mermaid-backed diagram generation
+- editable content scaffolding
+- one workflow that produces a reusable draft instead of starting each deck manually
+
+How to calculate:
+
+- baseline example:
+  - `30 minutes to produce a usable first draft`
+- after automation:
+  - `9 minutes`
+- formula:
+  - `(30 - 9) / 30 * 100 = 70%`
+
+How to defend it:
+
+- `I measured the time to reach a usable first draft, not the final polished deck. The value came from automating the repetitive outline and diagram setup work while still leaving room for human editing.`
+
 ## Quick Interview Rule
 
 If asked where the number came from, answer like this:
