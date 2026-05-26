@@ -648,6 +648,7 @@ R104["Offsite runner now persists reusable failure knowledge in SQLite (missing_
 R105["When Qwen page planning fails (ConnectionError), offsite runner applies deterministic candidate scoring fallback to continue safe click/navigate progression instead of empty-plan dead-end"]
 R106["Showcase cv_generation_excerpt now includes a formal improvement rubric: metric definition, baseline, change, post-change result, and explicit percentage formulas for CV claims"]
 R107["Canonical CV source now restores Bosch-scoped MCP+RAG and slide-generation coverage, rewrites the bullets in a modern architecture-focused style, and re-synchronizes documents/showcase CV artifacts from input/full_doc_stlye.txt with a timestamped backup"]
+R108["Colab bootstrap now includes export_job_route_dataset.py plus a notebook that trains a 3-label job-route classifier (easy_apply/offsite/manual_review_candidate) from the production SQLite snapshot; the export script auto-detects /content/Job-Ops-Console in Colab and keeps live routing unchanged"]
 R92 --> R93
 R93 --> R94
 R94 --> R95
@@ -656,6 +657,7 @@ R96 --> R97
 R97 --> R98
 R105 --> R106
 R106 --> R107
+R107 --> R108
 R98 --> R99
 R99 --> R100
 R100 --> R101
