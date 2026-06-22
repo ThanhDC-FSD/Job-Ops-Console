@@ -11,9 +11,9 @@ Senior Full-stack Engineer | Workflow Automation Engineer | AI-Assisted Developm
 ## About Section
 I am a senior full-stack engineer with a workflow automation mindset, focused on backend delivery, retrieval-assisted internal tooling, and reliability-first engineering.
 
-I work in English with customers and stakeholders across Germany, Belgium, other European teams, and India. That experience reinforces a simple approach: clarify requirements early, align implementation plans with business needs, and propose improvements that reduce friction without overcomplicating the system.
+I work in English with customers and stakeholders across Germany, Belgium, other European teams, and India. That experience keeps my approach practical: clarify requirements early, align implementation plans with business needs, and propose improvements that reduce friction without overcomplicating the system.
 
-I also use GitHub Copilot, OpenCode, and OpenAI Codex daily. I treat AI-assisted development as a disciplined engineering workflow that supports implementation, exploration, troubleshooting, documentation, and review while final design and production quality remain under human ownership.
+GitHub Copilot, OpenCode, and OpenAI Codex are part of my daily workflow. I use them for implementation, exploration, troubleshooting, documentation, and review while final design and production quality remain under human ownership.
 
 ## Core Strengths
 
@@ -33,7 +33,7 @@ Coding assistants fit into a normal engineering workflow, not as a replacement f
 **Key technologies / practices:** GitHub Copilot, OpenCode, OpenAI Codex, structured prompting, iterative implementation, AI-assisted code review, validation-driven workflows
 
 ### Retrieval & Context Engineering
-Retrieval-based tooling can surface the right evidence at the right time so the work can move forward without guessing. This is especially useful in internal tools and assistant workflows where context quality matters more than raw generation.
+Retrieval-based tooling surfaces the right evidence at the right time, so the work can move forward without guessing. This is especially useful in internal tools and assistant workflows where context quality matters more than raw generation.
 
 **Key technologies / practices:** MCP, Chroma, AST-based indexing, hybrid retrieval, retrieval-backed context generation
 
