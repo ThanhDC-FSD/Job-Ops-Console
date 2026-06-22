@@ -9,36 +9,36 @@ Senior Full-stack Engineer | Workflow Automation Engineer | AI-Assisted Developm
 **CTA labels:** View Projects | Download CV | Contact Me
 
 ## About Section
-I am a senior full-stack engineer with a workflow automation mindset. My work centers on backend delivery, practical automation, retrieval-assisted internal tooling, and reliability-first engineering.
+I am a senior full-stack engineer with a workflow automation mindset, focused on backend delivery, retrieval-assisted internal tooling, and reliability-first engineering.
 
-I work in English with customers and stakeholders across Germany, Belgium, other European teams, and India. That context has shaped how I approach engineering: clarify requirements early, align implementation plans with business needs, evaluate trade-offs honestly, and propose improvements that reduce friction without overcomplicating the system.
+I work in English with customers and stakeholders across Germany, Belgium, other European teams, and India. That experience reinforces a simple approach: clarify requirements early, align implementation plans with business needs, and propose improvements that reduce friction without overcomplicating the system.
 
-I also use GitHub Copilot, OpenCode, and OpenAI Codex daily. I do not treat AI-assisted development as a research topic; I treat it as a disciplined engineering workflow that supports implementation, exploration, troubleshooting, documentation, and review while final design and production quality remain under human ownership.
+I also use GitHub Copilot, OpenCode, and OpenAI Codex daily. I treat AI-assisted development as a disciplined engineering workflow that supports implementation, exploration, troubleshooting, documentation, and review while final design and production quality remain under human ownership.
 
 ## Core Strengths
 
 ### Workflow-Driven Engineering
-I think in terms of systems, flows, and handoffs. That makes it easier to spot where automation will actually reduce friction and where a manual step is still the safer choice. The goal is not novelty. The goal is a workflow that is easier to trust, easier to repeat, and easier to maintain.
+Systems, flows, and handoffs shape how I work. That makes it easier to spot where automation will actually reduce friction and where a manual step is still the safer choice. The goal is not novelty. The goal is a workflow that is easier to trust, easier to repeat, and easier to maintain.
 
 **Key technologies / practices:** HP ALM-to-GitHub delivery, release automation, workflow improvement, validation gates, deterministic fallbacks
 
 ### Backend & API Delivery
-I like building backend systems that are secure, understandable, and straightforward to integrate. The best APIs are the ones that reduce ambiguity for the next person who has to use them, debug them, or extend them.
+I build backend systems that are secure, understandable, and straightforward to integrate. The best APIs are the ones that reduce ambiguity for the next person who has to use them, debug them, or extend them.
 
 **Key technologies / practices:** FastAPI, Spring Boot, SQLAlchemy, Pydantic, WebSocket notifications, structured logging
 
 ### AI-Assisted Development
-I use coding assistants as part of a normal engineering workflow, not as a replacement for judgment. Structured prompting, code exploration, AI-assisted code review, troubleshooting, and documentation all fit into the same loop: use the tool to move faster, then verify the result carefully.
+Coding assistants fit into a normal engineering workflow, not as a replacement for judgment. Structured prompting, code exploration, AI-assisted code review, troubleshooting, and documentation all fit into the same loop: use the tool to move faster, then verify the result carefully.
 
 **Key technologies / practices:** GitHub Copilot, OpenCode, OpenAI Codex, structured prompting, iterative implementation, AI-assisted code review, validation-driven workflows
 
 ### Retrieval & Context Engineering
-A lot of engineering time is lost to context gathering. I have built retrieval-based tooling that surfaces the right evidence at the right time so the work can move forward without guessing. This is especially useful in internal tools and assistant workflows where context quality matters more than raw generation.
+Retrieval-based tooling can surface the right evidence at the right time so the work can move forward without guessing. This is especially useful in internal tools and assistant workflows where context quality matters more than raw generation.
 
 **Key technologies / practices:** MCP, Chroma, AST-based indexing, hybrid retrieval, retrieval-backed context generation
 
 ### Reliability & Validation Gates
-Reliability is not an afterthought. I use validation gates, deterministic fallbacks, structured logs, and controlled execution to keep the system honest. That approach matters whether the workflow is a deployment pipeline, a document generator, or a local coding assistant backend.
+Reliability is not an afterthought. Validation gates, deterministic fallbacks, structured logs, and controlled execution keep the system honest. That approach matters whether the workflow is a deployment pipeline, a document generator, or a local coding assistant backend.
 
 **Key technologies / practices:** validation gates, controlled execution, deterministic fallbacks, backup and restore automation, CI/CD hardening
 
@@ -129,7 +129,7 @@ My default is to let evidence lead. I prefer to validate before automating, make
 - Learn through implementation and apply what works in production software.
 
 ## Contact Section
-Looking for a senior engineer who can build workflow-heavy backend systems and use modern coding assistants with discipline? Feel free to reach out.
+Looking for a senior engineer for workflow-heavy backend systems and disciplined AI-assisted development? Feel free to reach out.
 
 - Email: thanhdc.dev@gmail.com
 - Location: Hanoi, Vietnam
