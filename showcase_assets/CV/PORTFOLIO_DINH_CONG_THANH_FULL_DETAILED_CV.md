@@ -133,8 +133,8 @@ If you are looking for a senior engineer who can build workflow-heavy backend sy
 
 - Email: thanhdc.dev@gmail.com
 - Location: Hanoi, Vietnam
-- LinkedIn: available on request
-- GitHub: available on request
+- LinkedIn: https://www.linkedin.com/in/dinh-thanh-684040179/
+- GitHub: https://github.com/ThanhDC-FSD/Job-Ops-Console/tree/showcase
 
 ## SEO / Metadata
 
