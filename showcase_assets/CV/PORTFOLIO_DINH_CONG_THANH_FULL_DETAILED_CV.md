@@ -8,8 +8,6 @@ Senior Full-stack Engineer | Workflow Automation Engineer | AI-Assisted Developm
 
 **CTA labels:** View Projects | Download CV | Contact Me
 
-**Target roles:** Full-Stack Software Engineer | Senior Full-stack Engineer | Workflow Automation Engineer | AI-assisted Development Engineer | Internal Tools / Platform Engineer | Technical Lead IC-track
-
 ## About Section
 I am a senior full-stack engineer with a workflow automation mindset. My work centers on backend delivery, practical automation, retrieval-assisted internal tooling, and reliability-first engineering.
 
@@ -73,6 +71,8 @@ Reliability is not an afterthought. I use validation gates, deterministic fallba
 
 **Tech / Practices:** FastAPI, OpenAI-compatible APIs, AST-based indexing, hybrid retrieval, planner/executor orchestration, validation gates, safe execution, bounded feedback loops, deterministic fallback behavior
 
+**Showcase:** [Job-Ops-Console showcase branch](https://github.com/ThanhDC-FSD/Job-Ops-Console/tree/showcase)
+
 ### Document Automation and Media Processing
 **Problem:** Document generation and media-processing steps were repetitive and fragile, especially when reliability mattered more than a one-off manual run.
 
@@ -83,12 +83,12 @@ Reliability is not an afterthought. I use validation gates, deterministic fallba
 **Tech / Practices:** tagged CV generation, document rendering, deterministic fallbacks, validation gates, subtitle extraction, translation, speech-to-text workflows
 
 ## Bosch Experience Highlight
-At Bosch Global Software Vietnam, I worked as a senior IC who could move between customer-facing discussion, implementation planning, and workflow improvement. The role was not about management; it was about being a technical counterpart who could help teams make practical decisions and then deliver the work reliably.
+At Bosch Global Software Vietnam, my work combined senior IC contribution, customer-facing technical discussion, implementation planning, and workflow improvement. I helped clarify requirements, shape practical technical direction, and deliver reliable workflow-driven systems across distributed teams.
 
 - Acted as a technical counterpart for customers and stakeholders across Germany, Belgium, other European teams, and India, using English to refine requirements, clarify business needs, and align implementation plans.
 - Identified operational bottlenecks across delivery workflows and internal tooling, then proposed practical improvements and feature ideas to reduce friction for users and engineering teams.
 - Delivered backend services, CI/CD automation, internal tooling, WebSocket notifications, structured logging, and backup/restore automation.
-- Kept the work grounded in implementation detail, maintainability, and operational reliability rather than management language.
+- Kept the work grounded in implementation detail, maintainability, and operational reliability.
 
 ## AI-Assisted Development Workflow
 I use GitHub Copilot, OpenCode, and OpenAI Codex daily. The workflow is transferable across modern coding assistants, so the tool can change without changing the engineering standard.
@@ -129,58 +129,9 @@ My default is to let evidence lead. I prefer to validate before automating, make
 - Learn through implementation and apply what works in production software.
 
 ## Contact Section
-If you are looking for a senior engineer who can build workflow-heavy backend systems and use modern coding assistants with discipline, this is the easiest way to reach me.
+Looking for a senior engineer who can build workflow-heavy backend systems and use modern coding assistants with discipline? Feel free to reach out.
 
 - Email: thanhdc.dev@gmail.com
 - Location: Hanoi, Vietnam
 - LinkedIn: https://www.linkedin.com/in/dinh-thanh-684040179/
-- GitHub: https://github.com/ThanhDC-FSD/Job-Ops-Console/tree/showcase
-
-## SEO / Metadata
-
-- **Portfolio title:** DINH CONG THANH | Senior Full-stack Engineer | Workflow Automation Engineer | AI-Assisted Development Practitioner
-- **Meta description:** Senior full-stack engineer building workflow-driven systems, backend delivery, automation, retrieval, validation, and disciplined AI-assisted development for international teams.
-- **Keywords:** Senior Full-stack Engineer, Workflow Automation Engineer, AI-Assisted Development, Backend Engineering, Retrieval Systems, Validation Gates, Production Quality, International Stakeholder Collaboration, FastAPI, React, Spring Boot
-- **Short bio:** Senior full-stack engineer focused on workflow-driven systems, backend delivery, automation, retrieval-assisted tooling, and reliability. Uses GitHub Copilot, OpenCode, and OpenAI Codex daily as part of a disciplined engineering workflow.
-- **Long bio:** DINH CONG THANH is a senior full-stack engineer and workflow automation engineer who builds practical systems around backend delivery, automation, retrieval, validation, and reliability. He works in English with customers and stakeholders across Germany, Belgium, other European teams, and India, translating business needs into implementable technical plans. His day-to-day workflow includes GitHub Copilot, OpenCode, and OpenAI Codex, used with structured prompting, careful review, validation, and maintainability in mind. He is strongest in senior IC settings where the work needs to be practical, production-minded, and resilient rather than flashy.
-
-## Suggested Website Navigation
-
-- Home
-- About
-- Core Strengths
-- Featured Projects
-- Bosch Experience
-- AI-Assisted Workflow
-- Skills
-- Working Style
-- Contact
-
-## Suggested Project Card Layout
-
-- Project title
-- One-line summary
-- Impact badge
-- Tech / practices tags
-- Short case-study excerpt
-- CTA label such as "Read More" or "View Case Study"
-
-## Suggested Homepage Section Order
-
-1. Hero Section
-2. About Section
-3. Core Strengths Section
-4. Featured Projects Section
-5. Bosch Experience Highlight
-6. AI-Assisted Development Workflow
-7. Technical Skills
-8. Working Style
-9. Contact Section
-10. SEO / Metadata
-
-## Optional Tagline Variations
-
-- Workflow-driven full-stack engineering for reliable delivery and practical AI-assisted development.
-- Backend, automation, retrieval, and validation for teams that need disciplined AI-assisted engineering.
-- Senior IC engineering for workflow-heavy systems and maintainable AI-assisted delivery.
-- Practical full-stack engineering that keeps automation reliable and AI assistance under control.
+- GitHub: https://github.com/ThanhDC-FSD
